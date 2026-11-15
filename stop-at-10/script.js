@@ -17,6 +17,7 @@ const MAX_NICK = 12;
 
 // 등급표 (오차 기준)
 const GRADES = [
+  { max: 0, label: "👑 완벽한 10초" },
   { max: 0.01, label: "🏆 인간 시계" },
   { max: 0.1, label: "🔥 고수" },
   { max: 0.5, label: "🙂 평범한 인간" },
@@ -60,9 +61,9 @@ let myLastEntry = null; // 방금 등록한 내 기록 (랭킹에서 강조용)
 
 // ---------- 게임 흐름 ----------
 
-function startGame() {
+function startGame(pressedAt) {
   state = "running";
-  startTime = performance.now();
+  startTime = pressedAt;
   lastResult = null;
 
   timerEl.textContent = "0.00";
@@ -94,13 +95,13 @@ function tick() {
   rafId = requestAnimationFrame(tick);
 }
 
-function stopGame() {
+function stopGame(pressedAt) {
   // 소수점 셋째 자리로 맞춤 (화면·랭킹·등급 모두 같은 숫자 사용)
-  const elapsed = Math.round(performance.now() - startTime) / 1000;
+  const elapsed = Math.round(pressedAt - startTime) / 1000;
   cancelAnimationFrame(rafId);
 
   state = "result";
-  stoppedAt = performance.now();
+  stoppedAt = pressedAt;
   showResult(elapsed);
 }
 
@@ -241,7 +242,7 @@ async function loadHallOfFame() {
   const { data, error } = await db
     .from("hall_of_fame")
     .select("nickname, elapsed, achieved_at")
-    .eq("title", "first_human_clock")
+    .eq("title", "first_perfect_10")
     .maybeSingle();
 
   if (error || !data) {
@@ -256,7 +257,7 @@ async function loadHallOfFame() {
   hofEl.innerHTML = `
     <span class="hof-crown">👑</span>
     <div class="hof-info">
-      <p class="hof-title">최초 인간 시계 달성</p>
+      <p class="hof-title">최초 완벽한 10초 달성</p>
       <p class="hof-name"></p>
     </div>
     <div class="hof-meta"><b></b><span></span></div>`;
@@ -359,8 +360,8 @@ async function submitScore(e) {
 
   rankForm.hidden = true;
   myRankEl.hidden = false;
-  myRankEl.textContent = data.first_human_clock
-    ? `👑 최초 인간 시계 달성! ${nickname}님이 명예의 전당에 올랐어요`
+  myRankEl.textContent = data.is_first_perfect
+    ? `👑 최초 완벽한 10초! ${nickname}님이 명예의 전당에 올랐어요`
     : messages[data.result] || "랭킹에 반영되었어요!";
 
   await loadRanking();
@@ -404,22 +405,31 @@ function showToast(message) {
 }
 
 // ---------- 입력 처리 ----------
+// ---------- 입력 처리 ----------
 
-function handleAction() {
+// 누른 순간의 시간: 브라우저가 기록한 이벤트 발생 시각(e.timeStamp)을 우선 사용
+// → 화면을 그리느라 처리가 늦어져도 실제로 누른 순간 기준으로 측정됨
+function pressTime(e) {
+  const t = e && e.timeStamp;
+  const now = performance.now();
+  return t > 0 && t <= now && now - t < 1000 ? t : now;
+}
+
+function handleAction(e) {
+  const t = pressTime(e);
   if (state === "running") {
-    stopGame();
+    stopGame(t);
   } else {
     // 멈춘 직후 연타로 바로 재시작되는 것 방지
-    if (state === "result" && performance.now() - stoppedAt < RESTART_GUARD)
-      return;
-    startGame();
+    if (state === "result" && t - stoppedAt < RESTART_GUARD) return;
+    startGame(t);
   }
 }
 
 // pointerdown: click보다 반응이 빨라서 기록 정확도가 올라감
 mainBtn.addEventListener("pointerdown", (e) => {
   e.preventDefault();
-  handleAction();
+  handleAction(e);
 });
 
 // PC: 스페이스바 / 엔터 (닉네임 입력 중에는 동작 안 함)
@@ -427,7 +437,7 @@ document.addEventListener("keydown", (e) => {
   if (document.activeElement === nicknameInput) return;
   if ((e.code === "Space" || e.code === "Enter") && !e.repeat) {
     e.preventDefault();
-    handleAction();
+    handleAction(e);
   }
 });
 
