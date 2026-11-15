@@ -12,6 +12,7 @@ const VISIBLE_TIME = 3; // 타이머가 보이는 시간 (초)
 const RESTART_GUARD = 700; // 멈춘 직후 실수로 다시 시작되는 것 방지 (ms)
 const BEST_KEY = "stop-at-10-best";
 const NICK_KEY = "stop-at-10-nickname";
+const PLAYER_KEY = "stop-at-10-player";
 const MAX_NICK = 12;
 
 // 등급표 (오차 기준)
@@ -40,6 +41,7 @@ const submitBtn = $("submitBtn");
 const myRankEl = $("myRank");
 const rankListEl = $("rankList");
 const refreshBtn = $("refreshBtn");
+const hofEl = $("hof");
 
 // ---------- DB 연결 ----------
 const db =
@@ -93,7 +95,8 @@ function tick() {
 }
 
 function stopGame() {
-  const elapsed = (performance.now() - startTime) / 1000;
+  // 소수점 셋째 자리로 맞춤 (화면·랭킹·등급 모두 같은 숫자 사용)
+  const elapsed = Math.round(performance.now() - startTime) / 1000;
   cancelAnimationFrame(rafId);
 
   state = "result";
@@ -102,19 +105,18 @@ function stopGame() {
 }
 
 function showResult(elapsed) {
-  const diff = elapsed - TARGET;
+  const diff = Math.round((elapsed - TARGET) * 1000) / 1000;
   const absDiff = Math.abs(diff);
   const grade = GRADES.find((g) => absDiff <= g.max).label;
-  const sign = diff >= 0 ? "+" : "-";
 
   lastResult = { elapsed, diff, grade, submitted: false };
 
-  timerEl.textContent = elapsed.toFixed(2);
+  timerEl.textContent = elapsed.toFixed(3);
   timerEl.classList.remove("is-hidden");
   timerEl.classList.add("is-result");
 
   gradeEl.textContent = grade;
-  diffEl.textContent = `오차 ${sign}${absDiff.toFixed(2)}초`;
+  diffEl.textContent = `오차 ${formatDiff(diff)}초`;
   bestEl.textContent = updateBest(elapsed, absDiff);
 
   resultEl.hidden = false;
@@ -154,7 +156,13 @@ function updateBest(elapsed, absDiff) {
     return best ? "🎉 최고 기록 갱신!" : "첫 기록이 저장되었어요";
   }
 
-  return `내 최고 기록: ${best.elapsed.toFixed(2)}초`;
+  return `내 최고 기록: ${best.elapsed.toFixed(3)}초`;
+}
+
+// 오차 표시: +0.012 / -0.002 / ±0.000
+function formatDiff(diff) {
+  const sign = diff > 0 ? "+" : diff < 0 ? "-" : "±";
+  return `${sign}${Math.abs(diff).toFixed(3)}`;
 }
 
 function loadNickname() {
@@ -171,6 +179,33 @@ function saveNickname(name) {
   } catch (e) {}
 }
 
+// ---------- 기기 고유번호 (같은 사람 구분용) ----------
+// 기기·브라우저마다 한 번 만들어 저장. 이 번호로 "내 기록"을 찾아 최고 기록만 남김
+let memoryPlayerId = null;
+
+function makeId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+function getPlayerId() {
+  try {
+    let id = localStorage.getItem(PLAYER_KEY);
+    if (!id) {
+      id = makeId();
+      localStorage.setItem(PLAYER_KEY, id);
+    }
+    return id;
+  } catch (e) {
+    // 저장이 막힌 환경(시크릿 모드 등)에서는 이번 접속 동안만 유지
+    if (!memoryPlayerId) memoryPlayerId = makeId();
+    return memoryPlayerId;
+  }
+}
+
 // ---------- 랭킹 ----------
 
 async function loadRanking() {
@@ -178,6 +213,8 @@ async function loadRanking() {
     renderRankMessage("랭킹 준비 중이에요 🛠️");
     return;
   }
+
+  loadHallOfFame();
 
   const { data, error } = await db
     .from("rankings")
@@ -198,6 +235,36 @@ async function loadRanking() {
   }
 
   renderRanking(data);
+}
+
+async function loadHallOfFame() {
+  const { data, error } = await db
+    .from("hall_of_fame")
+    .select("nickname, elapsed, achieved_at")
+    .eq("title", "first_human_clock")
+    .maybeSingle();
+
+  if (error || !data) {
+    hofEl.hidden = true;
+    return;
+  }
+
+  const date = new Date(data.achieved_at);
+  const dateText = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
+
+  // 닉네임은 사용자가 입력한 값이라 textContent로만 넣기
+  hofEl.innerHTML = `
+    <span class="hof-crown">👑</span>
+    <div class="hof-info">
+      <p class="hof-title">최초 인간 시계 달성</p>
+      <p class="hof-name"></p>
+    </div>
+    <div class="hof-meta"><b></b><span></span></div>`;
+  hofEl.querySelector(".hof-name").textContent = data.nickname;
+  hofEl.querySelector(".hof-meta b").textContent =
+    `${Number(data.elapsed).toFixed(3)}초`;
+  hofEl.querySelector(".hof-meta span").textContent = dateText;
+  hofEl.hidden = false;
 }
 
 function renderRankMessage(message) {
@@ -255,10 +322,13 @@ async function submitScore(e) {
   submitBtn.disabled = true;
   submitBtn.textContent = "등록 중...";
 
+  // DB 함수가 알아서 처리: 처음이면 추가 / 더 잘했으면 교체 / 아니면 기존 기록 유지
   const { data, error } = await db
-    .from("rankings")
-    .insert({ nickname, elapsed })
-    .select("id, abs_diff")
+    .rpc("submit_score", {
+      p_player_id: getPlayerId(),
+      p_nickname: nickname,
+      p_elapsed: elapsed,
+    })
     .single();
 
   if (error) {
@@ -270,21 +340,28 @@ async function submitScore(e) {
   }
 
   lastResult.submitted = true;
-  myLastEntry = data;
+  myLastEntry = { id: data.rank_id };
   saveNickname(nickname);
 
-  // 내 순위 = 나보다 오차가 작은 기록 수 + 1
+  // 내 순위 = 내 최고 기록보다 오차가 작은 기록 수 + 1
   const { count } = await db
     .from("rankings")
     .select("id", { count: "exact", head: true })
-    .lt("abs_diff", data.abs_diff);
+    .lt("abs_diff", data.best_abs_diff);
+
+  const rankText = typeof count === "number" ? ` 전체 ${count + 1}위` : "";
+  const best = Number(data.best_elapsed).toFixed(3);
+  const messages = {
+    new: `🎉 ${nickname}님 랭킹 등록!${rankText}`,
+    improved: `🔥 최고 기록 갱신! ${best}초,${rankText}`,
+    kept: `기존 최고 기록 ${best}초가 유지돼요.${rankText}`,
+  };
 
   rankForm.hidden = true;
   myRankEl.hidden = false;
-  myRankEl.textContent =
-    typeof count === "number"
-      ? `🎉 ${nickname}님은 전체 ${count + 1}위!`
-      : "🎉 랭킹에 등록되었어요!";
+  myRankEl.textContent = data.first_human_clock
+    ? `👑 최초 인간 시계 달성! ${nickname}님이 명예의 전당에 올랐어요`
+    : messages[data.result] || "랭킹에 반영되었어요!";
 
   await loadRanking();
 }
@@ -295,11 +372,10 @@ async function shareResult() {
   if (!lastResult) return;
 
   const { elapsed, diff, grade } = lastResult;
-  const sign = diff >= 0 ? "+" : "-";
   const url = "https://ge323.github.io/gongjakso/stop-at-10/";
   const text =
     `⏱️ 딱 10초 도전!\n` +
-    `내 기록: ${elapsed.toFixed(2)}초 (오차 ${sign}${Math.abs(diff).toFixed(2)}초)\n` +
+    `내 기록: ${elapsed.toFixed(3)}초 (오차 ${formatDiff(diff)}초)\n` +
     `${grade}\n\n👉 ${url}`;
 
   // 모바일: 공유 시트 / PC: 클립보드 복사
