@@ -296,7 +296,7 @@ async function shareResult() {
 
   const { elapsed, diff, grade } = lastResult;
   const sign = diff >= 0 ? "+" : "-";
-  const url = location.href;
+  const url = "https://ge323.github.io/gongjakso/stop-at-10/";
   const text =
     `⏱️ 딱 10초 도전!\n` +
     `내 기록: ${elapsed.toFixed(2)}초 (오차 ${sign}${Math.abs(diff).toFixed(2)}초)\n` +
