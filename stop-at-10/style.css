@@ -1,0 +1,325 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* hidden 속성이 display 설정에 덮이지 않도록 */
+[hidden] {
+  display: none !important;
+}
+
+:root {
+  --bg: #0f1115;
+  --card: #1a1d24;
+  --text: #f2f3f5;
+  --muted: #8b909a;
+  --accent: #4ade80;
+  --danger: #f87171;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  display: flex;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.app {
+  width: 100%;
+  max-width: 420px;
+  min-height: 100dvh;
+  padding: 32px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* 헤더 */
+.header {
+  text-align: center;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 36px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.subtitle strong {
+  color: var(--accent);
+}
+
+/* 타이머 영역 */
+.stage {
+  flex: 1;
+  background: var(--card);
+  border-radius: 24px;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 280px;
+}
+
+.timer {
+  font-size: clamp(64px, 22vw, 96px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -2px;
+  transition: filter 0.3s, color 0.3s;
+}
+
+/* 3초 후 타이머 가리기 */
+.timer.is-hidden {
+  color: var(--muted);
+  filter: blur(6px);
+}
+
+.timer.is-result {
+  color: var(--accent);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* 결과 */
+.result {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: pop 0.35s ease-out;
+}
+
+.grade {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.diff {
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.best {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+@keyframes pop {
+  from { transform: scale(0.9); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* 버튼 */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation; /* 모바일 더블탭 확대 방지 */
+  transition: transform 0.08s, background 0.2s;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-main {
+  padding: 22px;
+  font-size: 22px;
+  background: var(--accent);
+  color: #0b1a10;
+}
+
+.btn-main.is-stop {
+  background: var(--danger);
+  color: #2a0b0b;
+}
+
+.btn-sub {
+  padding: 16px;
+  font-size: 16px;
+  background: var(--card);
+  color: var(--text);
+}
+
+/* 랭킹 등록 폼 */
+.rank-form {
+  display: flex;
+  gap: 8px;
+}
+
+.rank-input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #2c313b;
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 16px; /* 16px 미만이면 iOS에서 자동 확대됨 */
+  user-select: text;
+  outline: none;
+}
+
+.rank-input:focus {
+  border-color: var(--accent);
+}
+
+.btn-submit {
+  width: auto;
+  padding: 0 18px;
+  font-size: 15px;
+  background: var(--text);
+  color: var(--bg);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.my-rank {
+  text-align: center;
+  font-weight: 700;
+  color: var(--accent);
+  padding: 6px 0;
+}
+
+/* 랭킹 보드 */
+.ranking {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.ranking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ranking-header h2 {
+  font-size: 18px;
+}
+
+.refresh-btn {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.rank-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rank-item {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  padding: 10px 4px;
+  border-bottom: 1px solid #252932;
+  font-size: 15px;
+}
+
+.rank-item:last-child {
+  border-bottom: none;
+}
+
+.rank-pos {
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.rank-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.rank-item.is-me {
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 10px;
+}
+
+.rank-empty {
+  color: var(--muted);
+  text-align: center;
+  font-size: 14px;
+  padding: 12px 0;
+}
+
+/* 푸터 */
+.footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 토스트 알림 */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translate(-50%, 20px);
+  background: var(--text);
+  color: var(--bg);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+}
+
+.toast.is-show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
