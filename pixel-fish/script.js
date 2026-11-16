@@ -291,9 +291,12 @@ function drawBubble(s) {
   const below = by < 3; // 위쪽 공간이 없으면 물고기 아래에
   if (below) by = s.y + h + 8;
 
-  // 톡 튀어나오는 효과
-  const t = Math.min((frame - selectedAt) / 8, 1);
-  const scale = 0.6 + 0.4 * (1 - Math.pow(1 - t, 3));
+  // 톡 튀어나오는 효과 (시작 전에는 그리지 않고, 0~1 범위로 제한)
+  if (frame < selectedAt) return;
+  const t = Math.min(Math.max((frame - selectedAt) / 8, 0), 1);
+  // 줌인 중에도 말풍선은 적당한 크기로 (화면 확대만큼 다시 줄이되 조금 크게)
+  const zoomFix = cam.z > 1 ? Math.min(1, 1.6 / cam.z) : 1;
+  const scale = (0.6 + 0.4 * (1 - Math.pow(1 - t, 3))) * zoomFix;
   tx.save();
   tx.translate(fishCx, below ? by : by + bh);
   tx.scale(scale, scale);
@@ -393,7 +396,7 @@ function drawTank() {
   const bubbleOn = selected && frame < selectedUntil && swimmers.includes(selected);
   for (const s of swimmers) {
     const { w } = fishSize(s.data.shape, FISH_P);
-    if (s.data.id === myFishId && !(bubbleOn && s === selected)) {
+    if (s.data.id === myFishId && !(bubbleOn && s === selected && frame >= selectedAt)) {
       drawLabel(`⭐ ${s.data.name}`, s.x + w / 2, s.y, true);
     }
   }
