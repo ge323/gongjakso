@@ -6,13 +6,20 @@ const SUPABASE_URL = "https://mamunluhjcrmharnrqdz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_eh0u-VyFBgXRSovoBPrgsQ_F2pYPjWU";
 
 // ---------- 설정 ----------
-const SHOW_LIMIT = 50;          // 어항에 보여줄 최대 물고기 수 (최근 순)
+const SHOW_LIMIT = 100;         // 어항에 보여줄 최대 물고기 수 (최근 순, 내 물고기는 항상 포함)
 const REFRESH_MS = 30000;       // 새 물고기 확인 주기 (30초)
 const PLAYER_KEY = "pixel-fish-player";
 const W = 360;                  // 어항 논리 크기 (캔버스는 2배로 그려서 선명하게)
 const H = 270;
 const SAND_Y = 250;
-const FISH_P = 4;                // 어항 속 물고기 픽셀 크기
+let FISH_P = 4;                  // 어항 속 물고기 픽셀 크기 (마릿수에 따라 자동 조절)
+
+// 물고기가 많아질수록 작게
+function fishPixelFor(count) {
+  if (count <= 25) return 4;
+  if (count <= 60) return 3;
+  return 2;
+}
 
 // 색 팔레트 (DB에는 0~7 번호로 저장)
 const COLORS = [
@@ -111,6 +118,11 @@ let selected = null;     // 눌러서 말풍선이 뜬 물고기
 let selectedUntil = 0;
 let selectedAt = 0;      // 말풍선이 튀어나온 시각 (애니메이션용)
 const draft = { shape: 0, body: 0, fin: 1, pattern: 0 };
+
+// 카메라 (내 물고기 찾기 줌인)
+const cam = { z: 1, left: 0, top: 0, target: null, start: 0 };
+const ZOOM = 2.5;
+const ZOOM_IN = 24, ZOOM_HOLD = 150, ZOOM_OUT = 24; // 프레임 수 (60fps 기준 약 0.4초 / 2.5초 / 0.4초)
 
 const bubbles = Array.from({ length: 14 }, () => ({
   x: Math.random() * W,
@@ -321,6 +333,7 @@ function updateSwimmer(s) {
     }
     return;
   }
+  s.baseY = Math.min(s.baseY, SAND_Y - h - 8);
   s.x += s.vx;
   if (s.x < 6) { s.x = 6; s.vx = Math.abs(s.vx); }
   if (s.x > W - w - 6) { s.x = W - w - 6; s.vx = -Math.abs(s.vx); }
@@ -328,10 +341,40 @@ function updateSwimmer(s) {
   s.y = s.baseY + Math.sin(frame / 40 + s.phase) * 4;
 }
 
+function updateCamera() {
+  if (!cam.target || !swimmers.includes(cam.target)) {
+    cam.z = 1; cam.left = 0; cam.top = 0; cam.target = null;
+    return;
+  }
+  const t = frame - cam.start;
+  const ease = (v) => 1 - Math.pow(1 - v, 3);
+  let k;
+  if (t < ZOOM_IN) k = ease(t / ZOOM_IN);
+  else if (t < ZOOM_IN + ZOOM_HOLD) k = 1;
+  else if (t < ZOOM_IN + ZOOM_HOLD + ZOOM_OUT) k = 1 - ease((t - ZOOM_IN - ZOOM_HOLD) / ZOOM_OUT);
+  else { cam.target = null; cam.z = 1; cam.left = 0; cam.top = 0; return; }
+
+  const { w, h } = fishSize(cam.target.data.shape, FISH_P);
+  const z = 1 + (ZOOM - 1) * k;
+  const vw = W / z, vh = H / z;
+  const cx = cam.target.x + w / 2, cy = cam.target.y + h / 2 - 10;
+  cam.z = z;
+  // 화면 픽셀 단위로 맞춰서 픽셀 사이 틈(격자무늬)이 생기지 않게
+  const px = 2 * z;
+  cam.left = Math.round(Math.min(Math.max(cx - vw / 2, 0), W - vw) * px) / px;
+  cam.top = Math.round(Math.min(Math.max(cy - vh / 2, 0), H - vh) * px) / px;
+}
+
 function drawTank() {
+  updateCamera();
+  tx.save();
+  tx.scale(cam.z, cam.z);
+  tx.translate(-cam.left, -cam.top);
   drawTankBackground();
 
-  for (const s of swimmers) {
+  // 내 물고기는 다른 물고기에 가려지지 않게 맨 나중에(맨 앞에) 그리기
+  const order = [...swimmers].sort((p, q) => (p.data.id === myFishId) - (q.data.id === myFishId));
+  for (const s of order) {
     updateSwimmer(s);
     const dir = s.vx > 0 ? 1 : -1;
     const wiggle = Math.floor((frame + s.phase * 10) / 12) % 2 === 0;
@@ -348,6 +391,7 @@ function drawTank() {
   }
   // 말풍선은 다른 물고기에 가려지지 않게 맨 마지막에
   if (bubbleOn) drawBubble(selected);
+  tx.restore();
 
   if (swimmers.length === 0) {
     tx.fillStyle = "rgba(255,255,255,0.7)";
@@ -410,6 +454,7 @@ function mergeFish(list) {
     }
   }
   swimmers = next;
+  FISH_P = fishPixelFor(swimmers.length);
 }
 
 // ---------- 기기 고유번호 ----------
@@ -465,6 +510,7 @@ async function loadFish() {
 
   const total = typeof countRes.count === "number" ? countRes.count : list.length;
   countEl.textContent = `지금 어항에 🐟 ${total}마리`;
+  updateFindButton();
 }
 
 async function loadMyFish() {
@@ -498,8 +544,8 @@ async function loadMyFish() {
 // ---------- 물고기 누르기 ----------
 tank.addEventListener("click", (e) => {
   const rect = tank.getBoundingClientRect();
-  const mx = ((e.clientX - rect.left) / rect.width) * W;
-  const my = ((e.clientY - rect.top) / rect.height) * H;
+  const mx = cam.left + (((e.clientX - rect.left) / rect.width) * W) / cam.z;
+  const my = cam.top + (((e.clientY - rect.top) / rect.height) * H) / cam.z;
 
   for (let i = swimmers.length - 1; i >= 0; i--) {
     const s = swimmers[i];
@@ -512,6 +558,28 @@ tank.addEventListener("click", (e) => {
     }
   }
   selected = null; // 빈 곳을 누르면 말풍선 닫기
+});
+
+// ---------- 내 물고기 찾기 ----------
+const findBtn = $("findBtn");
+const tipEl = $("tip");
+
+function updateFindButton() {
+  const hasMine = myFishId !== null && swimmers.some((s) => s.data.id === myFishId);
+  findBtn.hidden = !hasMine;
+  tipEl.hidden = hasMine;
+}
+
+findBtn.addEventListener("click", () => {
+  const mine = swimmers.find((s) => s.data.id === myFishId);
+  if (!mine) return;
+  cam.target = mine;
+  cam.start = frame;
+  // 줌인하면서 말풍선도 같이
+  selected = mine;
+  selectedAt = frame + ZOOM_IN;
+  selectedUntil = frame + ZOOM_IN + ZOOM_HOLD;
+  document.querySelector(".tank-wrap").scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
 // ---------- 꾸미기 화면 ----------

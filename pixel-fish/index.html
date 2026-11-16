@@ -16,10 +16,10 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
   <!-- DB (Supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=2" defer></script>
+  <script src="script.js?v=3" defer></script>
 </head>
 <body>
   <main class="app">
@@ -34,7 +34,8 @@
       <canvas id="tank" class="tank" width="720" height="540" aria-label="물고기들이 헤엄치는 어항"></canvas>
       <div class="tank-bar">
         <span id="count" class="count">어항을 채우는 중…</span>
-        <span class="tip">물고기를 눌러보세요</span>
+        <span id="tip" class="tip">물고기를 눌러보세요</span>
+        <button id="findBtn" class="find-btn" type="button" hidden>📍 내 물고기 찾기</button>
       </div>
     </section>
 
