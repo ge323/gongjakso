@@ -80,7 +80,6 @@ const tx = tank.getContext("2d");
 const preview = $("preview");
 const px = preview.getContext("2d");
 const countEl = $("count");
-const infoEl = $("info");
 const openBtn = $("openEditor");
 const shareBtn = $("shareBtn");
 const editorEl = $("editor");
@@ -110,6 +109,7 @@ let myFishId = null;
 let myFish = null;       // 내 물고기 데이터 (수정할 때 사용)
 let selected = null;     // 눌러서 말풍선이 뜬 물고기
 let selectedUntil = 0;
+let selectedAt = 0;      // 말풍선이 튀어나온 시각 (애니메이션용)
 const draft = { shape: 0, body: 0, fin: 1, pattern: 0 };
 
 const bubbles = Array.from({ length: 14 }, () => ({
@@ -236,17 +236,75 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 function drawLabel(text, cx, top, mine) {
-  tx.font = "bold 9px -apple-system, 'Noto Sans KR', sans-serif";
+  tx.font = "bold 10px -apple-system, 'Noto Sans KR', sans-serif";
   const w = tx.measureText(text).width + 10;
   const x = Math.min(Math.max(cx - w / 2, 2), W - w - 2);
-  const y = Math.max(top - 15, 2);
+  const y = Math.max(top - 17, 2);
   tx.fillStyle = mine ? "#4ade80" : "rgba(15, 17, 21, 0.75)";
-  roundRect(tx, x, y, w, 13, 6);
+  roundRect(tx, x, y, w, 15, 7);
   tx.fill();
   tx.fillStyle = mine ? "#0b1a10" : "#ffffff";
   tx.textAlign = "left";
   tx.textBaseline = "middle";
-  tx.fillText(text, x + 5, y + 7);
+  tx.fillText(text, x + 5, y + 8);
+}
+
+// 말풍선: 이름 + 한마디, 물고기를 따라다님
+function drawBubble(s) {
+  const { w, h } = fishSize(s.data.shape, FISH_P);
+  const mine = s.data.id === myFishId;
+  const name = (mine ? "⭐ " : "") + s.data.name;
+  const msg = s.data.message || "…(말없이 헤엄치는 중)";
+
+  tx.textAlign = "left";
+  tx.textBaseline = "middle";
+  tx.font = "bold 11px -apple-system, 'Noto Sans KR', sans-serif";
+  const nameW = tx.measureText(name).width;
+  tx.font = "10.5px -apple-system, 'Noto Sans KR', sans-serif";
+  const msgW = tx.measureText(msg).width;
+
+  const bw = Math.max(nameW, msgW) + 16;
+  const bh = 36;
+  const fishCx = s.x + w / 2;
+  let bx = Math.min(Math.max(fishCx - bw / 2, 3), W - bw - 3);
+  let by = s.y - bh - 8;
+  const below = by < 3; // 위쪽 공간이 없으면 물고기 아래에
+  if (below) by = s.y + h + 8;
+
+  // 톡 튀어나오는 효과
+  const t = Math.min((frame - selectedAt) / 8, 1);
+  const scale = 0.6 + 0.4 * (1 - Math.pow(1 - t, 3));
+  tx.save();
+  tx.translate(fishCx, below ? by : by + bh);
+  tx.scale(scale, scale);
+  tx.translate(-fishCx, -(below ? by : by + bh));
+
+  // 몸통 + 꼬리
+  tx.fillStyle = "#ffffff";
+  roundRect(tx, bx, by, bw, bh, 8);
+  tx.fill();
+  const tailX = Math.min(Math.max(fishCx, bx + 10), bx + bw - 10);
+  tx.beginPath();
+  if (below) {
+    tx.moveTo(tailX - 5, by);
+    tx.lineTo(tailX, by - 6);
+    tx.lineTo(tailX + 5, by);
+  } else {
+    tx.moveTo(tailX - 5, by + bh);
+    tx.lineTo(tailX, by + bh + 6);
+    tx.lineTo(tailX + 5, by + bh);
+  }
+  tx.closePath();
+  tx.fill();
+
+  // 글자
+  tx.font = "bold 11px -apple-system, 'Noto Sans KR', sans-serif";
+  tx.fillStyle = mine ? "#16a34a" : "#1d4ed8";
+  tx.fillText(name, bx + 8, by + 11);
+  tx.font = "10.5px -apple-system, 'Noto Sans KR', sans-serif";
+  tx.fillStyle = "#1f2937";
+  tx.fillText(msg, bx + 8, by + 25);
+  tx.restore();
 }
 
 function updateSwimmer(s) {
@@ -280,13 +338,16 @@ function drawTank() {
     drawFish(tx, s.data, s.x, s.y, FISH_P, dir, wiggle);
   }
 
-  // 이름표: 내 물고기는 항상, 누른 물고기는 잠깐
+  // 이름표: 내 물고기는 항상 (말풍선이 떠 있을 때는 말풍선이 대신)
+  const bubbleOn = selected && frame < selectedUntil && swimmers.includes(selected);
   for (const s of swimmers) {
     const { w } = fishSize(s.data.shape, FISH_P);
-    const mine = s.data.id === myFishId;
-    if (mine) drawLabel(`⭐ ${s.data.name}`, s.x + w / 2, s.y, true);
-    else if (s === selected && frame < selectedUntil) drawLabel(s.data.name, s.x + w / 2, s.y, false);
+    if (s.data.id === myFishId && !(bubbleOn && s === selected)) {
+      drawLabel(`⭐ ${s.data.name}`, s.x + w / 2, s.y, true);
+    }
   }
+  // 말풍선은 다른 물고기에 가려지지 않게 맨 마지막에
+  if (bubbleOn) drawBubble(selected);
 
   if (swimmers.length === 0) {
     tx.fillStyle = "rgba(255,255,255,0.7)";
@@ -435,16 +496,6 @@ async function loadMyFish() {
 }
 
 // ---------- 물고기 누르기 ----------
-function showInfo(s) {
-  infoEl.innerHTML = "";
-  const b = document.createElement("b");
-  b.textContent = s.data.id === myFishId ? `⭐ ${s.data.name} (내 물고기)` : s.data.name;
-  const msg = document.createElement("span");
-  msg.textContent = ` : ${s.data.message || "…(말없이 헤엄치는 중)"}`;
-  infoEl.append(b, msg);
-  infoEl.hidden = false;
-}
-
 tank.addEventListener("click", (e) => {
   const rect = tank.getBoundingClientRect();
   const mx = ((e.clientX - rect.left) / rect.width) * W;
@@ -455,11 +506,12 @@ tank.addEventListener("click", (e) => {
     const { w, h } = fishSize(s.data.shape, FISH_P);
     if (mx > s.x - 6 && mx < s.x + w + 6 && my > s.y - 6 && my < s.y + h + 6) {
       selected = s;
-      selectedUntil = frame + 240;
-      showInfo(s);
+      selectedAt = frame;
+      selectedUntil = frame + 300; // 약 5초
       return;
     }
   }
+  selected = null; // 빈 곳을 누르면 말풍선 닫기
 });
 
 // ---------- 꾸미기 화면 ----------
