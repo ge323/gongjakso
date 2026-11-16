@@ -21,6 +21,14 @@ function fishPixelFor(count) {
   return 2;
 }
 
+// 업데이트 목표 (진행 막대)
+// 기능을 실제로 공개하면 released를 true로 바꾸세요 → 다음 목표로 넘어가요
+const MILESTONES = [
+  { goal: 10, icon: "🍞", name: "밥 주기", released: false },
+  { goal: 30, icon: "🎩", name: "꾸미기 아이템", released: false },
+  { goal: 50, icon: "🦈", name: "새 물고기 종류", released: false },
+];
+
 // 색 팔레트 (DB에는 0~7 번호로 저장)
 const COLORS = [
   "#F5B83D", // 노랑
@@ -511,6 +519,7 @@ async function loadFish() {
   const total = typeof countRes.count === "number" ? countRes.count : list.length;
   countEl.textContent = `지금 어항에 🐟 ${total}마리`;
   updateFindButton();
+  updateGoal(total);
 }
 
 async function loadMyFish() {
@@ -559,6 +568,34 @@ tank.addEventListener("click", (e) => {
   }
   selected = null; // 빈 곳을 누르면 말풍선 닫기
 });
+
+// ---------- 업데이트 목표 진행 막대 ----------
+function updateGoal(total) {
+  const box = $("goal");
+  const next = MILESTONES.find((m) => !m.released);
+  if (!next) {
+    box.hidden = true;
+    return;
+  }
+
+  const prevGoal = MILESTONES.filter((m) => m.released).reduce((g, m) => Math.max(g, m.goal), 0);
+  const reached = total >= next.goal;
+  const ratio = reached ? 1 : Math.max(0, (total - prevGoal) / (next.goal - prevGoal));
+
+  $("goalTitle").textContent = reached
+    ? `🎉 ${next.icon} ${next.name} 목표 달성!`
+    : `${next.icon} ${next.name} 오픈까지`;
+  $("goalCount").textContent = reached ? "곧 열려요 🛠️" : `${total} / ${next.goal}마리`;
+  $("goalFill").style.width = `${Math.round(ratio * 100)}%`;
+  box.classList.toggle("is-done", reached);
+
+  const later = MILESTONES.filter((m) => !m.released && m !== next);
+  $("goalNext").textContent = later.length
+    ? "다음 목표: " + later.map((m) => `${m.icon} ${m.goal}마리`).join(" · ")
+    : "";
+  $("goalNext").hidden = later.length === 0;
+  box.hidden = false;
+}
 
 // ---------- 내 물고기 찾기 ----------
 const findBtn = $("findBtn");

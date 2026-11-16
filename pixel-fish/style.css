@@ -123,6 +123,70 @@ body {
   color: var(--accent);
 }
 
+/* 업데이트 목표 진행 막대 */
+.goal {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.goal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.goal-title {
+  font-weight: 800;
+}
+
+.goal-count {
+  color: var(--muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 픽셀 느낌 칸 나뉜 막대 */
+.goal-bar {
+  height: 16px;
+  border-radius: 4px;
+  background: #252932;
+  overflow: hidden;
+  position: relative;
+}
+
+.goal-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.6s ease-out;
+}
+
+.goal-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 3px), var(--card) calc(10% - 3px) 10%);
+}
+
+.goal.is-done .goal-fill {
+  background: #facc15;
+}
+
+.goal.is-done .goal-count {
+  color: #facc15;
+}
+
+.goal-next {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* 버튼 */
 .actions {
   display: flex;

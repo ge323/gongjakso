@@ -16,10 +16,10 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <!-- DB (Supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=3" defer></script>
+  <script src="script.js?v=4" defer></script>
 </head>
 <body>
   <main class="app">
@@ -37,6 +37,16 @@
         <span id="tip" class="tip">물고기를 눌러보세요</span>
         <button id="findBtn" class="find-btn" type="button" hidden>📍 내 물고기 찾기</button>
       </div>
+    </section>
+
+    <!-- 업데이트 목표 진행 막대 -->
+    <section id="goal" class="goal" hidden>
+      <div class="goal-top">
+        <span id="goalTitle" class="goal-title"></span>
+        <span id="goalCount" class="goal-count"></span>
+      </div>
+      <div class="goal-bar"><div id="goalFill" class="goal-fill"></div></div>
+      <p id="goalNext" class="goal-next"></p>
     </section>
 
     <div class="actions">
