@@ -21,7 +21,7 @@ const GRADES = [
   { max: 0.01, label: "🏆 인간 시계" },
   { max: 0.1, label: "🔥 고수" },
   { max: 0.5, label: "🙂 평범한 인간" },
-  { max: 1, label: "😅 조금 급했네요" },
+  { max: 1, early: "😅 조금 급했네요", late: "🐢 조금 늦었네요" },
   { max: Infinity, label: "⏰ 시계 새로 사세요" },
 ];
 
@@ -108,7 +108,8 @@ function stopGame(pressedAt) {
 function showResult(elapsed) {
   const diff = Math.round((elapsed - TARGET) * 1000) / 1000;
   const absDiff = Math.abs(diff);
-  const grade = GRADES.find((g) => absDiff <= g.max).label;
+  const g = GRADES.find((g) => absDiff <= g.max);
+  const grade = g.label ?? (diff < 0 ? g.early : g.late);
 
   lastResult = { elapsed, diff, grade, submitted: false };
 
