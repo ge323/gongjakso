@@ -82,8 +82,8 @@ body {
   left: 10px;
   z-index: 2;
   pointer-events: none;           /* 창문 누르기를 막지 않게 */
-  padding: 8px 12px 9px;
-  border-radius: 12px;
+  padding: 7px 10px 8px;
+  border-radius: 10px;
   background: rgba(8, 11, 22, 0.5);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
@@ -99,7 +99,7 @@ body {
 }
 
 .hud-clock {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
@@ -107,13 +107,14 @@ body {
 }
 
 .hud-date {
-  font-size: 12px;
+  white-space: nowrap;
+  font-size: 11px;
   font-weight: 600;
   color: #c3c9d6;
 }
 
 .hud-line {
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1.65;
   color: #e3e7ef;
@@ -130,19 +131,35 @@ body {
   display: none;
 }
 
+/* 화면 켜 두기 모드: 정보판을 그림 위가 아니라 위쪽에 탁상시계처럼 */
 body.is-mood .hud {
-  top: 14px;
-  left: 14px;
-  padding: 12px 16px 13px;
+  position: static;
+  padding: 0;
+  margin: 0 auto 18px;
+  background: none;
+  border: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  text-align: center;
+}
+
+body.is-mood .hud-top {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
 }
 
 body.is-mood .hud-clock {
-  font-size: clamp(40px, 11vw, 60px);
+  font-size: clamp(30px, min(11vw, 8vh), 64px);
+  font-weight: 300;
+  letter-spacing: 2px;
 }
 
 body.is-mood .hud-date,
 body.is-mood .hud-line {
-  font-size: 14px;
+  font-size: 13px;
+  white-space: normal;
 }
 
 /* 잔잔한 소리 켜고 끄기 (하늘 오른쪽 위) */
@@ -462,6 +479,8 @@ body.is-mood {
 
 body.is-mood .header,
 body.is-mood .goal,
+body.is-mood .focus,
+body.is-mood .days,
 body.is-mood .mine,
 body.is-mood .actions,
 body.is-mood .footer,
@@ -478,30 +497,77 @@ body.is-mood .town-wrap {
   background: #000;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: max(16px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
-  overflow: hidden;
+  justify-content: safe center;   /* 창이 작으면 위에서부터 (시계가 잘리지 않게) */
+  padding: max(64px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
+  overflow-y: auto;
 }
 
-body.is-mood .town-view,
-body.is-mood .scroller {
+body.is-mood .town-view {
   width: 100%;
-  max-width: calc((100dvh - 200px) * 0.75);
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
+body.is-mood .scroller,
 body.is-mood .town-bar,
 body.is-mood .peek {
   width: 100%;
-  max-width: calc((100dvh - 200px) * 0.75);
+  max-width: max(160px, min(100%, calc((100dvh - 330px) * 0.75)));
   margin-left: auto;
   margin-right: auto;
+}
+
+body.is-mood .sound-btn {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: 16px;
+  right: auto;
+}
+
+body.is-mood .mood-top {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+  z-index: 25;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 body.is-mood .now-count {
   font-size: 14px;
   font-weight: 600;
   color: var(--muted);
+}
+
+/* 내 창문 가까이 보기 */
+.win-view {
+  display: block;
+  width: 100%;
+  max-width: 132px;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 12px;
+  image-rendering: pixelated;
+  background: #000;
+}
+
+.view-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: -6px;
+}
+
+.peek-view {
+  flex-shrink: 0;
+  width: 48px;
+  height: 56px;
+  border-radius: 8px;
+  image-rendering: pixelated;
+  background: #000;
 }
 
 /* 집중 세션 */
