@@ -18,10 +18,11 @@
 
   <!-- 글꼴: Pretendard (윈도우에서도 또렷하게) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
   <!-- DB (Supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=9" defer></script>
+  <script src="sound.js?v=2" defer></script>
+  <script src="script.js?v=10" defer></script>
 </head>
 <body>
   <main class="app">
@@ -47,6 +48,7 @@
           <p id="hudSun" class="hud-line"></p>
           <p id="hudTimer" class="hud-line"></p>
         </div>
+        <button id="soundBtn" class="sound-btn" type="button" aria-pressed="false">♪ 소리 켜기</button>
         <div id="scroller" class="scroller">
           <canvas id="town" class="town" width="720" height="960" aria-label="불 켜진 창문이 있는 밤의 아파트 단지"></canvas>
         </div>

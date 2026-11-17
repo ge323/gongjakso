@@ -375,7 +375,10 @@ function drawWeatherFront(W) {
   }
 
   if (wx.kind === "thunder") {
-    if (frame - flashAt > 240 && Math.random() < 1 / 420) flashAt = frame;
+    if (frame - flashAt > 240 && Math.random() < 1 / 420) {
+      flashAt = frame;
+      if (window.Sound) Sound.thunder();
+    }
     const t = frame - flashAt;
     if (t < 14) {
       if (t < 6) {
@@ -1508,6 +1511,47 @@ function exitMood() {
 }
 
 $("moodExit").addEventListener("click", exitMood);
+
+// ---------- ♪ 잔잔한 소리 ----------
+const soundBtn = $("soundBtn");
+let soundPaused = false;   // 다른 탭에 가서 잠깐 멈춘 상태
+
+function updateSoundBtn() {
+  const playing = window.Sound && Sound.isOn();
+  soundBtn.textContent = playing ? "♪ 소리 끄기" : "♪ 소리 켜기";
+  soundBtn.classList.toggle("is-on", !!playing);
+  soundBtn.setAttribute("aria-pressed", playing ? "true" : "false");
+}
+
+soundBtn.addEventListener("click", async (e) => {
+  e.stopPropagation();
+  if (!window.Sound) return;
+  if (Sound.isOn()) Sound.stop();
+  else await Sound.start();
+  updateSoundBtn();
+});
+
+// 지난번에 켜 뒀다면: 브라우저 규칙상 화면을 한 번 눌러야 소리가 나요
+if (window.Sound && Sound.wanted()) {
+  const resume = async () => {
+    if (!Sound.isOn()) await Sound.start();
+    updateSoundBtn();
+  };
+  document.addEventListener("pointerdown", resume, { once: true });
+}
+
+// 다른 탭으로 가면 소리도 멈추고, 돌아오면 다시
+document.addEventListener("visibilitychange", async () => {
+  if (!window.Sound) return;
+  if (document.visibilityState === "hidden" && Sound.isOn()) {
+    Sound.stop(false);
+    soundPaused = true;
+  } else if (document.visibilityState === "visible" && soundPaused) {
+    soundPaused = false;
+    await Sound.start();
+  }
+  updateSoundBtn();
+});
 
 // ---------- 공유 ----------
 $("shareBtn").addEventListener("click", async () => {
