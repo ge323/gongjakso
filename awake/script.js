@@ -235,6 +235,7 @@ function townDone(name) {
 }
 
 function stateOf(n) {
+  if (arriving.has(n)) return recent.has(n) && n !== myNo ? { kind: "ember", ...recent.get(n) } : { kind: "off" };
   if (n === myNo) return { kind: "on", c: look.c, s: look.s, h: myTotal + liveExtra(), st: myStars, f: !!sessionGoal, a: away };
   if (online.has(n)) {
     const r = recent.get(n) || {};
@@ -701,10 +702,10 @@ function drawBuilding(g, bx) {
   tx.textBaseline = "middle";
   tx.fillText(`${101 + g}동`, bx + 16, GROUND - 6.5);
 
-  // 현관
+  // 현관 (밤에는 더 환하게)
   tx.fillStyle = "#151925";
   tx.fillRect(bx + BW / 2 - 8, GROUND - 12, 16, 12);
-  tx.fillStyle = "rgba(255, 200, 87, 0.35)";
+  tx.fillStyle = `rgba(255, 200, 87, ${0.3 + nightLevel() * 0.45})`;
   tx.fillRect(bx + BW / 2 - 6, GROUND - 10, 12, 10);
 }
 
@@ -714,21 +715,136 @@ function drawGround(W) {
   tx.fillStyle = "#2a2f40";
   for (let x = 6; x < W; x += 24) tx.fillRect(x, GROUND + 20, 12, 2);
 
-  // 가로등 (장식) — 편의점이 생기면 그 자리 가로등은 빼기
+  // 인도 (건물 앞 좁은 길 — 사람들이 걸어 다니는 곳)
+  tx.fillStyle = mixHex("#1b1f2c", "#6a707e", amb);
+  tx.fillRect(0, GROUND, W, 4);
+
+  // 가로등 — 해가 지면 켜지고, 깊은 밤일수록 환하게 (편의점이 생기면 그 자리 가로등은 빼기)
   const store = townDone("편의점");
+  const night = nightLevel();
   for (let x = 120; x < W; x += 122) {
     if (store && x === 242) continue;
-    tx.fillStyle = "rgba(255, 210, 120, 0.08)";
-    tx.beginPath();
-    tx.moveTo(x - 2, GROUND - 40);
-    tx.lineTo(x - 16, GROUND);
-    tx.lineTo(x + 14, GROUND);
-    tx.closePath();
-    tx.fill();
-    tx.fillStyle = "#3a4058";
+    if (night > 0) {
+      // 빛 기둥
+      tx.fillStyle = `rgba(255, 214, 140, ${0.05 + night * 0.16})`;
+      tx.beginPath();
+      tx.moveTo(x - 2, GROUND - 40);
+      tx.lineTo(x - 20, GROUND + 4);
+      tx.lineTo(x + 18, GROUND + 4);
+      tx.closePath();
+      tx.fill();
+      // 바닥에 고인 빛
+      tx.fillStyle = `rgba(255, 214, 140, ${night * 0.22})`;
+      tx.beginPath();
+      tx.ellipse(x, GROUND + 3, 24, 5, 0, 0, Math.PI * 2);
+      tx.fill();
+      // 전구 주변 번짐
+      tx.fillStyle = `rgba(255, 226, 160, ${night * 0.25})`;
+      pixelCircle(x, GROUND - 41, 7);
+    }
+    tx.fillStyle = mixHex("#3a4058", "#5d6478", amb);
     tx.fillRect(x - 1, GROUND - 40, 2, 40);
-    tx.fillStyle = "#ffd78a";
+    tx.fillStyle = night > 0 ? mixHex("#ffd78a", "#fff3cf", night) : "#9aa0ad";
     tx.fillRect(x - 3, GROUND - 42, 6, 3);
+  }
+}
+
+// 0(낮) ~ 1(깊은 밤): 가로등·현관 불빛 세기
+function nightLevel() {
+  return Math.max(0, Math.min(1, (0.62 - amb) / 0.45));
+}
+
+// ---------- 🚶 들어오고 나가는 사람들 ----------
+// 누가 들어오면: 길에서 걸어와 자기 동 현관으로 들어간 뒤 → 그 창문에 불이 켜짐
+// 누가 나가면: 불이 꺼지고 → 현관에서 나와 길로 걸어감
+// (실제로 들어오고 나가는 순간에만 나타나요. 옷 색 = 그 사람 조명 색)
+const SKINS = ["#f1c9a5", "#e0ac7e", "#c68a5e", "#f5d6bd"];
+const HAIRS = ["#2b2220", "#4a3326", "#1b1c22", "#7a5534", "#c9c3b8"];
+const walkers = [];
+const arriving = new Set();     // 아직 걸어오는 중인 창문 (도착하면 불이 켜짐)
+const movedFrom = new Set();    // 이사 간 옛 자리 (나가는 사람으로 그리지 않기)
+
+function doorX(n) {
+  const { block, b } = slotOf(n);
+  return block * BLOCK_W + BX[b] + BW / 2;
+}
+
+function makeWalker(n, c, x, v, mode, tx) {
+  return {
+    n, c, x, v, mode, tx, age: 0, dist: 0,
+    fade: mode === "in" ? 1 : 0,
+    skin: SKINS[Math.floor(rand(n * 11) * SKINS.length)],
+    hair: HAIRS[Math.floor(rand(n * 17) * HAIRS.length)],
+  };
+}
+
+function walkIn(n, c, fromX) {
+  if (walkers.some((w) => w.n === n && w.mode === "in")) return;
+  const W = blocks * BLOCK_W;
+  const door = doorX(n);
+  let x = fromX;
+  if (x === undefined) {
+    const dir = rand(n + frame * 0.37) < 0.5 ? -1 : 1;
+    x = Math.min(W + 6, Math.max(-6, door + dir * (60 + rand(n * 3 + frame) * 60)));
+  }
+  arriving.add(n);
+  walkers.push(makeWalker(n, c, x, x < door ? 0.9 : -0.9, "in", door));
+}
+
+function walkOut(n, c) {
+  const dir = rand(n * 7 + frame * 0.13) < 0.5 ? -1 : 1;
+  walkers.push(makeWalker(n, c, doorX(n), dir * 0.7, "out"));
+}
+
+function drawWalkers() {
+  const night = nightLevel();
+  for (let i = walkers.length - 1; i >= 0; i--) {
+    const w = walkers[i];
+    w.age++;
+    let walking = true;
+    if (w.mode === "in") {
+      if (Math.abs(w.tx - w.x) > 1 && w.age < 600) {
+        w.x += Math.sign(w.tx - w.x) * Math.min(Math.abs(w.v), Math.abs(w.tx - w.x));
+      } else {
+        // 현관 앞 도착 → 스르륵 들어가고 불 켜기
+        walking = false;
+        w.x = w.tx;
+        w.fade -= 1 / 14;
+        if (w.fade <= 0) {
+          walkers.splice(i, 1);
+          arriving.delete(w.n);
+          pops.set(w.n, frame);
+          if (w.n === myNo) lightAt = frame;
+          continue;
+        }
+      }
+    } else {
+      // 현관에서 나와 걷다가 멀어지면 사라짐
+      w.fade = Math.min(1, w.fade + 1 / 14);
+      w.x += w.v;
+      w.dist += Math.abs(w.v);
+      if (w.dist > 110) w.fade = Math.max(0, 1 - (w.dist - 110) / 30);
+      if (w.dist > 140) { walkers.splice(i, 1); continue; }
+    }
+
+    const x = Math.round(w.x), y = GROUND + 3;          // 발 위치
+    const step = walking ? Math.floor(frame / 8) % 2 : 0;
+    const m = (((x - 120) % 122) + 122) % 122;          // 가로등 아래면 덜 어둡게
+    const lit = night > 0 && Math.min(m, 122 - m) < 18 ? 0.25 * night : 0;
+    const shade = (hex) => mix(hex, "#0b0d14", Math.max(0, night * 0.15 - lit));
+    tx.globalAlpha = Math.max(0, Math.min(1, w.fade));
+    // 키 13칸: 머리카락 1 + 얼굴 3 + 몸 5 + 다리 4
+    tx.fillStyle = shade("#2a2e3c");                     // 다리 (걸을 때 번갈아)
+    if (step) { tx.fillRect(x - 2, y - 4, 2, 4); tx.fillRect(x + 1, y - 3, 2, 3); }
+    else { tx.fillRect(x - 2, y - 3, 2, 3); tx.fillRect(x + 1, y - 4, 2, 4); }
+    tx.fillStyle = shade(COLORS[w.c] || COLORS[0]);      // 몸 (옷 = 그 사람 조명 색)
+    tx.fillRect(x - 2, y - 9, 5, 5);
+    tx.fillStyle = shade(w.skin);                         // 얼굴
+    tx.fillRect(x - 1, y - 12, 3, 3);
+    tx.fillStyle = shade(w.hair);                         // 머리카락
+    tx.fillRect(x - 1, y - 13, 3, 1);
+    tx.fillRect(x - 1, y - 12, 1, 1);
+    tx.globalAlpha = 1;
   }
 }
 
@@ -1106,6 +1222,7 @@ function draw() {
     for (let b = 0; b < 3; b++) drawBuilding(k * 3 + b, k * BLOCK_W + BX[b]);
   }
   for (let n = 1; n <= blocks * PER_BLOCK; n++) drawWindow(n);
+  drawWalkers();
   drawWeatherFront(W);
   drawEffects();
 }
@@ -1364,8 +1481,7 @@ moveBtn.addEventListener("click", async () => {
   taken.add(myNo);
   if (recent.has(from)) { recent.set(myNo, recent.get(from)); recent.delete(from); }
   if (channel && connected) channel.send({ type: "broadcast", event: "move", payload: { from, to: myNo } });
-  lightAt = frame;
-  pops.set(myNo, frame);
+  walkIn(myNo, look.c, doorX(from));   // 옛집 현관에서 새집 현관까지 걸어가기
   updateMine();
   closePeek();
   showToast(`${addr(myNo)}로 이사했어요`);
@@ -1378,7 +1494,8 @@ function onMove({ from, to }) {
   if (recent.has(from)) { recent.set(to, recent.get(from)); recent.delete(from); }
   taken.delete(from);
   taken.add(to);
-  pops.set(to, frame);
+  movedFrom.add(from);
+  walkIn(to, (recent.get(to) || {}).c || 0, doorX(from));
   if (selectedN === from || selectedN === to) openPeek(selectedN);
 }
 
@@ -1502,7 +1619,7 @@ async function lightWindow() {
   updateFocus();
   renderDays();
   if (first) {
-    lightAt = frame;
+    walkIn(myNo, look.c);     // 걸어 들어가서 불 켜기 (도착하면 딸깍)
     showToast(`${addr(myNo)}에 불을 켰어요`);
   }
   sizeCanvas();
@@ -1553,13 +1670,17 @@ function joinRoom() {
         });
       }
       for (const n of next.keys()) {
-        if (!online.has(n) && !(firstSync && n !== myNo)) pops.set(n, frame);
+        if (!online.has(n) && !firstSync && n !== myNo) walkIn(n, next.get(n).c);
         if (!online.has(n) && !firstSync && n !== myNo && next.size <= 30) {
           showToast(`${addr(n)}에 불이 켜졌어요`);
         }
       }
       for (const n of online.keys()) {
-        if (!next.has(n)) recent.set(n, { ...(recent.get(n) || {}), ...online.get(n), t: new Date().toISOString() });
+        if (!next.has(n)) {
+          recent.set(n, { ...(recent.get(n) || {}), ...online.get(n), t: new Date().toISOString() });
+          if (movedFrom.has(n)) movedFrom.delete(n);
+          else if (n !== myNo && !arriving.has(n)) walkOut(n, online.get(n).c);
+        }
       }
       firstSync = false;
       online = next;
