@@ -1323,6 +1323,21 @@ function tick() {
   checkMoments();
 }
 
+// 정보판을 누르면 시계만 남기고 접기 (기기에 기억)
+const HUD_KEY = "awake-hud";
+const hudEl = $("hud");
+try { if (localStorage.getItem(HUD_KEY) === "min") hudEl.classList.add("is-collapsed"); } catch (e) {}
+
+function toggleHud() {
+  const min = hudEl.classList.toggle("is-collapsed");
+  try { localStorage.setItem(HUD_KEY, min ? "min" : "full"); } catch (e) {}
+}
+
+hudEl.addEventListener("click", toggleHud);
+hudEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleHud(); }
+});
+
 // 하늘 위 정보판: 시계·날짜 / 해 뜨고 지기까지 / 오늘 켜둔 시간
 // (서울 시각 — 하늘 색과 같은 기준이라 ?sky= 옵션도 따라감)
 function updateHud(extra) {

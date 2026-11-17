@@ -81,7 +81,9 @@ body {
   top: 10px;
   left: 10px;
   z-index: 2;
-  pointer-events: none;           /* 창문 누르기를 막지 않게 */
+  cursor: pointer;                 /* 누르면 시계만 남기고 접기 */
+  user-select: none;
+  -webkit-user-select: none;
   padding: 7px 10px 8px;
   border-radius: 10px;
   background: rgba(8, 11, 22, 0.5);
@@ -125,6 +127,16 @@ body {
 .hud-line b {
   color: var(--accent);
   font-weight: 800;
+}
+
+/* 접었을 때: 시계만 */
+.hud.is-collapsed .hud-date,
+.hud.is-collapsed .hud-line {
+  display: none;
+}
+
+.hud.is-collapsed .hud-top {
+  margin-bottom: 0;
 }
 
 .hud-line:empty {
