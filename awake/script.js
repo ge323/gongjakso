@@ -259,15 +259,17 @@ function setWeather(code, cloud, temp) {
 }
 
 function updateWeatherLabel() {
-  const el = $("wxLabel");
+  const el = $("hudWx");   // 지금은 화면에 글자로 안 띄움 (하늘 그림으로만 표현)
+  if (!el) return;
   if (!wx.ok) { el.textContent = ""; return; }
   const night = amb < 0.3;
   const names = {
     clear: night ? "🌙 맑음" : "☀️ 맑음", cloudy: "⛅ 구름 조금", overcast: "☁️ 흐림", fog: "🌫️ 안개",
     drizzle: "🌦️ 이슬비", rain: "🌧️ 비", snow: "🌨️ 눈", thunder: "⛈️ 천둥번개",
   };
-  const temp = typeof wx.temp === "number" ? ` ${Math.round(wx.temp)}°` : "";
-  el.textContent = `서울 ${names[wx.kind]}${temp}`;
+  const temp = typeof wx.temp === "number" ? ` · ${Math.round(wx.temp)}°C` : "";
+  const [icon, ...label] = names[wx.kind].split(" ");
+  el.textContent = `${icon} 서울 ${label.join(" ")}${temp}`;
 }
 
 async function loadWeather() {
@@ -966,28 +968,38 @@ function tick() {
   const extra = liveExtra();
   if (myNo) {
     const total = myTotal + extra;
-    $("todayTime").textContent = hms(myToday + extra);
-    $("totalTime").textContent = `지금까지 총 ${dur(total)}`;
-
     const hrs = total / 3600;
     const next = GROWTH.find((g) => hrs < g.h);
-    const have = GROWTH.filter((g) => hrs >= g.h);
-    // 화분이 생기면 새싹은 화분으로 자란 거라 목록에서 빼기
-    const shown = have.filter((g) => !(g.name === "새싹" && hrs >= 5)).map((g) => `${g.icon} ${g.name}`);
-    const parts = [];
-    if (shown.length) parts.push(`내 창문에 <b>${shown.join(" · ")}</b>`);
-    if (next) parts.push(`${next.icon} ${next.name}까지 <b>${dur(Math.ceil(next.h * 3600 - total))}</b> 남았어요`);
-    else parts.push("모든 꾸미기를 모았어요 🌙");
-    $("growth").innerHTML = parts.join("<br>") +
-      '<br><span style="font-size:12px">불을 켜둔 시간만큼 창문이 꾸며져요</span>';
+    const lines = [`지금까지 총 <b>${dur(total)}</b> 켜 뒀어요`];
+    lines.push(next
+      ? `다음 꾸미기 ${next.icon} ${next.name}까지 ${dur(Math.ceil(next.h * 3600 - total))}`
+      : "꾸미기를 모두 모았어요");
+    $("growth").innerHTML = lines.join("<br>");
   }
   updateGoal();
   updateWeatherLabel();
-  if (moodOn) {
-    const d = new Date();
-    $("moodClock").textContent = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    $("moodTimer").innerHTML = myNo ? `오늘 불 켜둔 시간 <b>${hms(myToday + extra)}</b>` : "";
-  }
+  updateHud(extra);
+}
+
+// 하늘 위 정보판: 시계·날짜 / 해 뜨고 지기까지 / 오늘 켜둔 시간
+// (서울 시각 — 하늘 색과 같은 기준이라 ?sky= 옵션도 따라감)
+function updateHud(extra) {
+  const { min, doy } = seoulNow();
+  const m = Math.floor(min);
+  $("hudClock").textContent = `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+  const k = new Date(Date.now() + 9 * 3600 * 1000);
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  $("hudDate").textContent = `${k.getUTCMonth() + 1}월 ${k.getUTCDate()}일 (${days[k.getUTCDay()]})`;
+
+  const { rise, set } = sunTimes(doy);
+  let sun;
+  if (min < rise) sun = `해 뜨기까지 ${dur(Math.round((rise - min) * 60))}`;
+  else if (min < set) sun = `해 지기까지 ${dur(Math.round((set - min) * 60))}`;
+  else sun = `내일 해 뜨기까지 ${dur(Math.round((1440 - min + sunTimes(doy + 1).rise) * 60))}`;
+  $("hudSun").textContent = sun;
+
+  $("hudTimer").innerHTML = myNo ? `오늘 불 켜둔 시간 <b>${hms(myToday + extra)}</b>` : "";
 }
 
 function updateGoal() {
@@ -999,21 +1011,20 @@ function updateGoal() {
   box.hidden = false;
 
   if (!next) {
-    $("goalTitle").textContent = "🎉 단지 목표를 모두 이뤘어요!";
+    $("goalTitle").textContent = "단지 목표를 모두 이뤘어요 🎉";
     $("goalCount").textContent = `${hrs.toFixed(1)}시간`;
     $("goalFill").style.width = "100%";
     $("goalNext").textContent = `생긴 것: ${done.map((g) => `${g.icon} ${g.name}`).join(" · ")} · 다음 목표 준비 중 🛠️`;
     return;
   }
   const prev = done.length ? done[done.length - 1].h : 0;
-  $("goalTitle").textContent = `🏙️ 다 같이 켠 불로 ${next.icon} ${next.name} 짓는 중`;
+  $("goalTitle").textContent = `다 같이 켠 불로 ${next.icon} ${next.name} 짓는 중`;
   $("goalCount").textContent = `${hrs.toFixed(1)} / ${next.h}시간`;
   $("goalFill").style.width = `${Math.min(100, Math.max(0, ((hrs - prev) / (next.h - prev)) * 100))}%`;
   const later = TOWN_GOALS.filter((g) => g.h > next.h).map((g) => `${g.icon} ${g.h}시간`);
   const lines = [];
   if (done.length) lines.push(`생긴 것: ${done.map((g) => `${g.icon} ${g.name}`).join(" · ")}`);
-  if (later.length) lines.push(`다음 목표: ${later.join(" · ")}`);
-  lines.push("모두가 불을 켜둔 시간을 합쳐서 세요");
+  if (later.length) lines.push(`다음: ${later.join(" · ")}`);
   $("goalNext").innerHTML = lines.join("<br>");
 }
 
@@ -1048,6 +1059,7 @@ town.addEventListener("click", (e) => {
   const ly = ((e.clientY - rect.top) / rect.height) * H;
   const n = numberAt(lx, ly);
   if (!n) { closePeek(); return; }
+  if (n === myNo) { closePeek(); pops.set(n, frame); return; }   // 내 창문 정보는 아래 '내 창문'에 이미 있음
   openPeek(n);
 });
 
@@ -1128,8 +1140,8 @@ moveBtn.addEventListener("click", async () => {
   lightAt = frame;
   pops.set(myNo, frame);
   updateMine();
-  openPeek(myNo);
-  showToast(`🏠 ${addr(myNo)}로 이사했어요! 꾸미기도 그대로 가져왔어요`);
+  closePeek();
+  showToast(`${addr(myNo)}로 이사했어요`);
   await rejoinRoom();
   loadWindows();
 });
@@ -1158,7 +1170,7 @@ waveBtn.addEventListener("click", async () => {
   }
   const now = Date.now();
   if (now - lastWaveAt < WAVE_COOLDOWN_MS) {
-    showToast("손목 좀 쉬었다가 흔들어요 🙂");
+    showToast("잠깐 뒤에 다시 보낼 수 있어요");
     return;
   }
   lastWaveAt = now;
@@ -1187,7 +1199,7 @@ findBtn.addEventListener("click", () => {
   const { x } = winPos(myNo);
   const ratio = x / (blocks * BLOCK_W);
   scroller.scrollTo({ left: ratio * scroller.scrollWidth - scroller.clientWidth / 2, behavior: "smooth" });
-  openPeek(myNo);
+  closePeek();
   pops.set(myNo, frame);
 });
 
@@ -1252,7 +1264,7 @@ async function lightWindow() {
   counting = document.visibilityState === "visible";
   if (first) {
     lightAt = frame;
-    showToast(`🪟 ${addr(myNo)}에 불을 켰어요`);
+    showToast(`${addr(myNo)}에 불을 켰어요`);
   }
   sizeCanvas();
   updateMine();
@@ -1299,7 +1311,7 @@ function joinRoom() {
       for (const n of next.keys()) {
         if (!online.has(n) && !(firstSync && n !== myNo)) pops.set(n, frame);
         if (!online.has(n) && !firstSync && n !== myNo && next.size <= 30) {
-          showToast(`🪟 ${addr(n)}에 불이 켜졌어요`);
+          showToast(`${addr(n)}에 불이 켜졌어요`);
         }
       }
       for (const n of online.keys()) {
@@ -1409,7 +1421,7 @@ $("moodBtn").addEventListener("click", async () => {
     if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
   } catch (e) {}
   const locked = await lockScreen();
-  showToast(locked ? "🌃 화면이 꺼지지 않게 켜 둘게요" : "🌃 화면 자동 꺼짐은 폰 설정에서 늘려주세요");
+  showToast(locked ? "화면이 꺼지지 않게 켜 둘게요" : "화면 자동 꺼짐은 폰 설정에서 바꿔 주세요");
   if (myNo && blocks > 1) findBtn.click();
 });
 
@@ -1459,6 +1471,8 @@ function showToast(message) {
   requestAnimationFrame(loop);
   loadWeather();
   setInterval(loadWeather, WEATHER_MS);
+  tick();
+  setInterval(tick, 1000);
   if (!db) return;
   const ok = await lightWindow();
   await loadWindows();
@@ -1468,6 +1482,5 @@ function showToast(message) {
     if (blocks > 1) findBtn.click();
   }
   setInterval(() => { if (document.visibilityState === "visible") lightWindow(); }, HEARTBEAT_MS);
-  setInterval(tick, 1000);
   setInterval(loadWindows, REFRESH_MS);
 })();

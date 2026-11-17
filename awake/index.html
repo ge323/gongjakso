@@ -16,10 +16,12 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 
-  <link rel="stylesheet" href="style.css?v=4">
+  <!-- 글꼴: Pretendard (윈도우에서도 또렷하게) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="style.css?v=7">
   <!-- DB (Supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=4" defer></script>
+  <script src="script.js?v=7" defer></script>
 </head>
 <body>
   <main class="app">
@@ -33,14 +35,21 @@
     <section class="town-wrap">
       <!-- 무드등 모드일 때만 보임 -->
       <div id="moodTop" class="mood-top" hidden>
-        <div>
-          <p id="moodClock" class="mood-clock">00:00</p>
-          <p id="moodTimer" class="mood-timer"></p>
-        </div>
         <button id="moodExit" class="mood-exit" type="button" aria-label="무드등 끄기">✕</button>
       </div>
-      <div id="scroller" class="scroller">
-        <canvas id="town" class="town" width="720" height="960" aria-label="불 켜진 창문이 있는 밤의 아파트 단지"></canvas>
+      <div class="town-view">
+        <!-- 하늘 위에 띄우는 시계·타이머·날씨 -->
+        <div class="hud" aria-live="off">
+          <div class="hud-top">
+            <span id="hudClock" class="hud-clock">--:--</span>
+            <span id="hudDate" class="hud-date"></span>
+          </div>
+          <p id="hudSun" class="hud-line"></p>
+          <p id="hudTimer" class="hud-line"></p>
+        </div>
+        <div id="scroller" class="scroller">
+          <canvas id="town" class="town" width="720" height="960" aria-label="불 켜진 창문이 있는 밤의 아파트 단지"></canvas>
+        </div>
       </div>
       <div class="town-bar">
         <span id="nowCount" class="now-count">불 켜는 중…</span>
@@ -48,7 +57,6 @@
       </div>
       <div class="sub-bar">
         <span id="dayCount" class="day-count"></span>
-        <span id="wxLabel" class="wx"></span>
       </div>
 
       <!-- 창문을 눌렀을 때 -->
@@ -79,12 +87,6 @@
         <p id="myWaves" class="mine-visits"></p>
       </div>
 
-      <div class="timer">
-        <p class="timer-label">오늘 불 켜둔 시간</p>
-        <p id="todayTime" class="timer-time">00:00:00</p>
-        <p id="totalTime" class="timer-sub"></p>
-      </div>
-
       <div class="field">
         <p class="label">조명 색</p>
         <div id="colors" class="swatches"></div>
@@ -96,7 +98,7 @@
       </div>
 
       <p id="growth" class="growth"></p>
-      <p class="move-hint">🏠 불 꺼진 빈 창문을 누르면 이사할 수 있어요 · 하루 1번 · 꾸미기는 그대로</p>
+      <p class="move-hint">빈 창문을 누르면 이사할 수 있어요 (하루 1번)</p>
     </section>
 
     <div class="actions">
@@ -105,8 +107,8 @@
     </div>
 
     <footer class="footer">
-      <p>화면이 켜져 있는 동안만 불이 켜지고 시간이 쌓여요<br>나가면 창문이 24시간 동안 희미하게 남아요 · 하루는 새벽 6시에 바뀌어요</p>
-      <p>하늘은 서울의 해 뜨는·지는 시간과 지금 날씨를 따라가요 · 날씨 정보: <a class="credit" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></p>
+      <p>화면이 켜져 있는 동안만 시간이 쌓여요 · 하루는 새벽 6시에 바뀌어요</p>
+      <p>하늘과 날씨는 서울 기준 · 날씨 정보 <a class="credit" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></p>
       <p>의뢰: 공작소장 · 🛠️ 아이디어 공작소</p>
       <p><a class="home-link" href="https://ge323.github.io/gongjakso/">다른 공작품 보러가기 →</a></p>
     </footer>
