@@ -504,6 +504,204 @@ body.is-mood .now-count {
   color: var(--muted);
 }
 
+/* 집중 세션 */
+.focus {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.focus.is-running {
+  box-shadow: 0 0 0 1px rgba(252, 211, 77, 0.45) inset;
+}
+
+.focus-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.focus-title {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.focus-left {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-pick {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.focus-pick .chip {
+  text-align: center;
+  font-weight: 700;
+}
+
+.focus-run {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.focus-run .goal-bar {
+  flex: 1;
+}
+
+.focus-stop {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.focus-stop.is-armed {
+  color: #f87171;
+}
+
+.focus-info {
+  font-size: 12px;
+  color: var(--muted);
+  word-break: keep-all;
+}
+
+/* 불빛 달력 */
+.days {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.days-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.days-title {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.days-sum {
+  font-size: 13px;
+  color: #c9ccd2;
+  font-variant-numeric: tabular-nums;
+}
+
+.days-sum b {
+  color: var(--accent);
+}
+
+.days-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+}
+
+.day {
+  position: relative;
+  aspect-ratio: 5 / 6;
+  border-radius: 2px;
+  background: #1c2131;
+  box-shadow: 0 0 0 1px #0f1220 inset;
+}
+
+.day.lv1 { background: #3d3522; }
+.day.lv2 { background: #7a6128; }
+.day.lv3 { background: #c4922f; }
+.day.lv4 { background: #fcd34d; box-shadow: 0 0 6px rgba(252, 211, 77, 0.45); }
+.day.is-today { outline: 1.5px solid #f2f3f5; outline-offset: 1px; }
+
+.day.has-star::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 4px #fff;
+}
+
+.days-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.days-legend i {
+  width: 10px;
+  height: 12px;
+  border-radius: 2px;
+  background: #1c2131;
+}
+
+.days-legend .lv1 { background: #3d3522; }
+.days-legend .lv2 { background: #7a6128; }
+.days-legend .lv3 { background: #c4922f; }
+.days-legend .lv4 { background: #fcd34d; }
+
+/* 오늘 기록 카드 */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 380px;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-img {
+  width: 100%;
+  max-height: 62dvh;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #000;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.modal-close {
+  align-self: center;
+  color: var(--muted);
+  padding: 6px;
+}
+
 /* 내 창문 */
 .mine {
   background: var(--card);

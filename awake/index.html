@@ -18,11 +18,11 @@
 
   <!-- 글꼴: Pretendard (윈도우에서도 또렷하게) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
   <!-- DB (Supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="sound.js?v=2" defer></script>
-  <script src="script.js?v=10" defer></script>
+  <script src="script.js?v=11" defer></script>
 </head>
 <body>
   <main class="app">
@@ -47,6 +47,7 @@
           </div>
           <p id="hudSun" class="hud-line"></p>
           <p id="hudTimer" class="hud-line"></p>
+          <p id="hudFocus" class="hud-line"></p>
         </div>
         <button id="soundBtn" class="sound-btn" type="button" aria-pressed="false">♪ 소리 켜기</button>
         <div id="scroller" class="scroller">
@@ -72,6 +73,24 @@
       </div>
     </section>
 
+    <!-- 집중 세션 -->
+    <section id="focus" class="focus" hidden>
+      <div class="focus-top">
+        <p id="focusTitle" class="focus-title">집중 세션</p>
+        <p id="focusLeft" class="focus-left"></p>
+      </div>
+      <div id="focusPick" class="focus-pick">
+        <button class="chip" type="button" data-min="30">30분</button>
+        <button class="chip" type="button" data-min="60">1시간</button>
+        <button class="chip" type="button" data-min="120">2시간</button>
+      </div>
+      <div id="focusRun" class="focus-run" hidden>
+        <div class="goal-bar"><div id="focusFill" class="goal-fill"></div></div>
+        <button id="focusStop" class="link-btn focus-stop" type="button">그만두기</button>
+      </div>
+      <p id="focusInfo" class="focus-info">끝까지 켜 두면 내 창문에 별이 생겨요 · 3분 넘게 나가면 실패</p>
+    </section>
+
     <!-- 단지 공동 목표 -->
     <section id="goal" class="goal" hidden>
       <div class="goal-top">
@@ -80,6 +99,18 @@
       </div>
       <div class="goal-bar"><div id="goalFill" class="goal-fill"></div></div>
       <p id="goalNext" class="goal-next"></p>
+    </section>
+
+    <!-- 불빛 달력 (잔디) -->
+    <section id="days" class="days" hidden>
+      <div class="days-top">
+        <p class="days-title">불빛 달력</p>
+        <p id="daysSum" class="days-sum"></p>
+      </div>
+      <div id="daysGrid" class="days-grid" aria-label="최근 12주 동안 불을 켠 날"></div>
+      <div class="days-legend">
+        <span>적게</span><i class="lv0"></i><i class="lv1"></i><i class="lv2"></i><i class="lv3"></i><i class="lv4"></i><span>많이</span>
+      </div>
     </section>
 
     <!-- 내 창문 -->
@@ -105,18 +136,30 @@
     </section>
 
     <div class="actions">
-       <button id="moodBtn" class="btn btn-main" type="button">화면 켜 두기</button>
+      <button id="moodBtn" class="btn btn-main" type="button">화면 켜 두기</button>
       <p class="move-hint">화면이 꺼지지 않게 해서 시간이 계속 쌓여요</p>
-      <button id="shareBtn" class="btn btn-sub" type="button">📋 내 창문 알려주기</button>
+      <button id="shareBtn" class="btn btn-sub" type="button">오늘 기록 카드</button>
     </div>
 
     <footer class="footer">
-      <p>화면이 켜져 있는 동안만 시간이 쌓여요 · 하루는 새벽 6시에 바뀌어요</p>
+      <p>화면이 켜져 있는 동안만 시간이 쌓여요 · 잠깐 나가도 3분까지는 괜찮아요 · 하루는 새벽 6시에 바뀌어요</p>
       <p>위치는 이 기기에만 저장하고 날씨 조회에만 대략(약 10km) 써요 · 날씨 정보 <a class="credit" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></p>
       <p>의뢰: 공작소장 · 🛠️ 아이디어 공작소</p>
       <p><a class="home-link" href="https://ge323.github.io/gongjakso/">다른 공작품 보러가기 →</a></p>
     </footer>
   </main>
+
+  <!-- 오늘 기록 카드 -->
+  <div id="cardModal" class="modal" hidden>
+    <div class="modal-box">
+      <img id="cardImg" class="card-img" alt="오늘 기록 카드">
+      <div class="modal-actions">
+        <button id="cardShare" class="btn btn-main" type="button">공유하기</button>
+        <button id="cardSave" class="btn btn-sub" type="button">이미지 저장</button>
+        <button id="cardClose" class="link-btn modal-close" type="button">닫기</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>

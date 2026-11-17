@@ -93,7 +93,18 @@ let myToday = 0;               // 오늘(새벽 6시 기준) 켜둔 시간(초)
 let townSec = 0;               // 단지 전체 시간(초)
 let syncedAt = 0;              // 마지막으로 서버 값을 받은 시각 (performance.now)
 let counting = false;          // 지금 시간이 흐르는 중인지 (화면이 보일 때만)
-let moodOn = false;            // 무드등 모드
+let moodOn = false;            // 화면 켜 두기 모드
+let myStars = 0;               // 끝까지 해낸 집중 세션 수
+let sessionGoal = null;        // 진행 중인 세션 목표(초)
+let sessionSec = 0;            // 세션에서 쌓은 시간(초) — 서버 기준
+let sessionClosing = false;    // 세션 끝 확인 요청 중
+let away = false;              // 다른 앱에 잠깐 가 있는 중 (3분 유예)
+let awayTimer = null;
+let leftAt = 0;
+let myDays = new Map();        // 불빛 달력: 'YYYY-MM-DD' → { s, st }
+let hourWaveAt = -999;         // 정각 파도가 시작된 프레임
+let lastWaveHour = null;
+const AWAY_GRACE_MS = 3 * 60 * 1000;
 let wakeLock = null;
 let lightAt = -1;              // 내 불이 켜진 순간 (딸깍 효과)
 let connected = false;         // 실시간 연결 여부
@@ -224,8 +235,11 @@ function townDone(name) {
 }
 
 function stateOf(n) {
-  if (n === myNo) return { kind: "on", c: look.c, s: look.s, h: myTotal + liveExtra() };
-  if (online.has(n)) return { kind: "on", ...online.get(n), h: recent.get(n)?.h || 0 };
+  if (n === myNo) return { kind: "on", c: look.c, s: look.s, h: myTotal + liveExtra(), st: myStars, f: !!sessionGoal, a: away };
+  if (online.has(n)) {
+    const r = recent.get(n) || {};
+    return { kind: "on", ...online.get(n), h: r.h || 0, st: r.st || 0 };
+  }
   if (recent.has(n)) return { kind: "ember", ...recent.get(n) };
   return { kind: "off" };
 }
@@ -575,6 +589,20 @@ function drawSky(W, sky) {
     const low = 1 - Math.sin(Math.max(0, Math.min(1, sunT)) * Math.PI);  // 지평선 가까울수록 붉게
     tx.fillStyle = rgba(mixHex("#fff1b8", "#ff8a4c", low), 0.18);
     pixelCircle(Math.round(x), Math.round(y), 20);
+    // 🌅 해 뜨는 순간 (앞뒤 5분): 햇살이 퍼짐
+    if (Math.abs(sky.min - sky.rise) < 5) {
+      const k = 1 - Math.abs(sky.min - sky.rise) / 5;
+      tx.fillStyle = `rgba(255,214,150,${0.12 * k})`;
+      for (let i = 0; i < 9; i++) {
+        const a = -Math.PI + (i / 8) * Math.PI + Math.sin(frame / 90 + i) * 0.03;
+        tx.beginPath();
+        tx.moveTo(x, y);
+        tx.lineTo(x + Math.cos(a - 0.05) * 420, y + Math.sin(a - 0.05) * 420);
+        tx.lineTo(x + Math.cos(a + 0.05) * 420, y + Math.sin(a + 0.05) * 420);
+        tx.closePath();
+        tx.fill();
+      }
+    }
     tx.fillStyle = mixHex("#fff4c2", "#ff9a5a", low);
     pixelCircle(Math.round(x), Math.round(y), 11);
   }
@@ -743,6 +771,21 @@ function drawTownExtras(sky) {
     tx.fillText("24", 242, GROUND - 24);
   }
 
+  // 🌠 새벽 3시 ~ 3시 15분: 별똥별비 (그 시간에 켜져 있는 사람만 볼 수 있음)
+  if (isMeteorTime() && sky.stars > 0.15) {
+    for (let lane = 0; lane < 4; lane++) {
+      const cyc = (frame + lane * 37) % 110;
+      if (cyc >= 34) continue;
+      const seed = Math.floor((frame + lane * 37) / 110) * 7 + lane;
+      const sx = 20 + rand(seed + 950) * (blocks * BLOCK_W - 80), sy = 6 + rand(seed + 951) * 70;
+      const t = cyc / 34;
+      for (let k = 0; k < 12; k++) {
+        tx.fillStyle = `rgba(255,255,240,${(1 - k / 12) * (1 - t) * sky.stars})`;
+        tx.fillRect(Math.round(sx + t * 80 - k * 3), Math.round(sy + t * 40 - k * 1.5), 2, 1);
+      }
+    }
+  }
+
   // 🌠 별똥별 (밤하늘에서 가끔)
   if (townDone("별똥별") && sky.stars > 0) {
     const cyc = frame % 540;
@@ -793,11 +836,14 @@ function drawWindow(n) {
     tx.fillRect(x, y, WIN_W, WIN_H);
     tx.fillStyle = mixHex("#232a3d", "#7f97bd", amb);
     tx.fillRect(x, y, WIN_W, 2);
+    hourWaveGlow(x, y);
     return;
   }
 
   const color = COLORS[st.c] || COLORS[0];
-  if (st.kind === "on") {
+  // 잠깐 다른 앱에 간 사람(3분 유예)은 깜빡깜빡
+  const blinkOff = st.kind === "on" && st.a && Math.floor(frame / 28) % 2 === 1;
+  if (st.kind === "on" && !blinkOff) {
     // 은은한 빛 번짐 (숨 쉬듯)
     const breathe = (0.16 + Math.sin(frame / 50 + n) * 0.04) * (1 - amb * 0.7);
     tx.fillStyle = rgba(color, breathe);
@@ -810,6 +856,19 @@ function drawWindow(n) {
     // 흔적: 최근 24시간 안에 다녀간 창문은 희미하게
     tx.fillStyle = mix(color, offC, 0.72);
     tx.fillRect(x, y, WIN_W, WIN_H);
+  }
+
+  // ⭐ 집중 세션을 끝까지 해낸 창문: 오른쪽 위에 작은 별 (많을수록 색이 진해짐)
+  if (st.st > 0) {
+    const sc = st.st >= 30 ? "#ff9f43" : st.st >= 10 ? "#fcd34d" : "#fff7d6";
+    tx.fillStyle = st.kind === "on" ? sc : mix(sc, offC, 0.5);
+    tx.fillRect(x + WIN_W - 1, y - 4, 1, 3);
+    tx.fillRect(x + WIN_W - 2, y - 3, 3, 1);
+  }
+  // 🎯 지금 집중 세션 중인 창문: 아래에 노란 밑줄
+  if (st.kind === "on" && st.f) {
+    tx.fillStyle = "#fcd34d";
+    tx.fillRect(x, y + WIN_H + 1, WIN_W, 1);
   }
 
   // 오래 켜둔 창문 꾸미기 (총 켜둔 시간)
@@ -858,6 +917,19 @@ function drawWindow(n) {
     tx.lineWidth = 1;
     tx.strokeRect(x - 2.5, y - 2.5, WIN_W + 5, WIN_H + 5);
   }
+  hourWaveGlow(x, y);
+}
+
+// ✨ 정각 파도: 매 정각, 단지 전체 창문에 왼쪽에서 오른쪽으로 불빛이 지나감
+function hourWaveGlow(x, y) {
+  const t = frame - hourWaveAt;
+  if (t < 0 || t > 220) return;
+  const W = blocks * BLOCK_W;
+  const wx = (t / 180) * (W + 80) - 40 - (GROUND - y) * 0.15;   // 살짝 기울어진 파도
+  const k = 1 - Math.abs(x - wx) / 26;
+  if (k <= 0) return;
+  tx.fillStyle = `rgba(255,236,170,${k * 0.75})`;
+  tx.fillRect(x, y, WIN_W, WIN_H);
 }
 
 function drawEffects() {
@@ -1056,6 +1128,8 @@ function tick() {
   updateGoal();
   updateWeatherLabel();
   updateHud(extra);
+  updateFocus();
+  checkMoments();
 }
 
 // 하늘 위 정보판: 시계·날짜 / 해 뜨고 지기까지 / 오늘 켜둔 시간
@@ -1077,6 +1151,7 @@ function updateHud(extra) {
   $("hudSun").textContent = sun;
 
   $("hudTimer").innerHTML = myNo ? `오늘 불 켜둔 시간 <b>${hms(myToday + extra)}</b>` : "";
+  $("hudFocus").innerHTML = sessionGoal ? `집중 세션 <b>${hms(sessionLeft())}</b> 남음` : "";
 }
 
 function updateGoal() {
@@ -1156,7 +1231,8 @@ function openPeek(n) {
     peekAddr.textContent = `${addr(n)} · 내 창문`;
     peekState.textContent = STATUS_TEXT[look.s];
   } else if (st.kind === "on") {
-    peekState.textContent = `${STATUS_TEXT[st.s] || STATUS_TEXT[0]} · 지금 깨어 있어요`;
+    peekState.textContent = `${STATUS_TEXT[st.s] || STATUS_TEXT[0]} · ${st.a ? "잠깐 자리 비움" : st.f ? "집중하는 중" : "지금 깨어 있어요"}`
+      + (st.st ? ` · 별 ${st.st}개` : "");
     waveBtn.hidden = false;
     waveBtn.disabled = false;
   } else if (st.kind === "ember") {
@@ -1289,7 +1365,7 @@ function changeLook(patch) {
   if (myNo) {
     pops.set(myNo, frame);
     if (selectedN === myNo) openPeek(myNo);
-    if (tracking) channel.track({ w: myNo, c: look.c, s: look.s });
+    if (tracking) track();
   }
   clearTimeout(lookTimer);
   lookTimer = setTimeout(lightWindow, 800);
@@ -1337,8 +1413,20 @@ async function lightWindow() {
   myTotal = Number(data.my_total_sec) || 0;
   myToday = Number(data.my_today_sec) || 0;
   townSec = Math.max(townSec, Number(data.town_sec) || 0);
+  myStars = Number(data.my_stars) || 0;
+  const hadGoal = sessionGoal;
+  sessionGoal = data.my_session_goal ? Number(data.my_session_goal) : null;
+  sessionSec = Number(data.my_session_sec) || 0;
   syncedAt = performance.now();
   counting = document.visibilityState === "visible";
+  sessionClosing = false;
+  if (data.session_result === "done") onSessionDone(hadGoal);
+  else if (data.session_result === "failed") {
+    showToast("3분 넘게 나가 있어서 집중 세션이 끝났어요");
+  }
+  if (hadGoal !== sessionGoal && tracking) track();
+  updateFocus();
+  renderDays();
   if (first) {
     lightAt = frame;
     showToast(`${addr(myNo)}에 불을 켰어요`);
@@ -1355,7 +1443,7 @@ async function loadWindows() {
   dbTotal = Number(data.total) || 0;
   taken = new Set((data.taken || []).map(Number));
   townSec = Number(data.town_sec) || townSec;
-  recent = new Map(data.windows.map((w) => [Number(w.n), { c: w.c, s: w.s, h: Number(w.h) || 0, t: w.t }]));
+  recent = new Map(data.windows.map((w) => [Number(w.n), { c: w.c, s: w.s, h: Number(w.h) || 0, t: w.t, st: Number(w.st) || 0 }]));
   if (realtimeFailed) {
     // 실시간 연결이 안 되면: 최근 6분 안에 기록이 있는 창문을 깨어 있는 걸로 표시
     const cut = Date.now() - FALLBACK_AWAKE_MS;
@@ -1383,7 +1471,12 @@ function joinRoom() {
         const meta = state[key][state[key].length - 1] || {};
         const n = Number(meta.w);
         if (!Number.isInteger(n) || n < 1 || String(n) !== key) continue;
-        next.set(n, { c: clampInt(meta.c, COLORS.length), s: clampInt(meta.s, STATUS_CHIPS.length) });
+        next.set(n, {
+          c: clampInt(meta.c, COLORS.length),
+          s: clampInt(meta.s, STATUS_CHIPS.length),
+          a: meta.a === 1,      // 잠깐 자리 비움 (깜빡임)
+          f: meta.f === 1,      // 집중 세션 중
+        });
       }
       for (const n of next.keys()) {
         if (!online.has(n) && !(firstSync && n !== myNo)) pops.set(n, frame);
@@ -1396,6 +1489,7 @@ function joinRoom() {
       }
       firstSync = false;
       online = next;
+      rememberNeighbors();
       sizeCanvas();
       updateCounts();
       if (selectedN) openPeek(selectedN);
@@ -1447,7 +1541,7 @@ function clampInt(v, max) {
 async function track() {
   if (!channel || !connected) return;
   tracking = true;
-  await channel.track({ w: myNo, c: look.c, s: look.s });
+  await channel.track({ w: myNo, c: look.c, s: look.s, a: away ? 1 : 0, f: sessionGoal ? 1 : 0 });
 }
 
 async function untrack() {
@@ -1456,18 +1550,28 @@ async function untrack() {
   await channel.untrack();
 }
 
-// 다른 탭으로 가거나 화면을 끄면 불도 끄기
+// 다른 앱에 가면: 3분 동안은 창문이 깜빡이며 기다려 주고, 그 뒤엔 불이 꺼짐
 document.addEventListener("visibilitychange", async () => {
   if (document.visibilityState === "visible") {
+    clearTimeout(awayTimer);
+    const gone = leftAt ? Date.now() - leftAt : 0;
+    const hadSession = !!sessionGoal;
+    away = false;
+    leftAt = 0;
     await lightWindow();
     await track();
     loadWindows();
     if (moodOn) lockScreen();
+    if (gone > 5000 && gone < AWAY_GRACE_MS && hadSession && sessionGoal) showToast("돌아왔네요. 불은 그대로 켜져 있어요");
   } else {
-    // 나가기 직전까지의 시간을 적립하고 멈추기
+    // 나가기 직전까지의 시간을 적립하고, 3분 동안은 "잠깐 자리 비움"으로 표시
     counting = false;
+    away = true;
+    leftAt = Date.now();
     lightWindow();
-    await untrack();
+    await track();
+    clearTimeout(awayTimer);
+    awayTimer = setTimeout(untrack, AWAY_GRACE_MS);
   }
 });
 
@@ -1554,31 +1658,332 @@ document.addEventListener("visibilitychange", async () => {
 });
 
 // ---------- 공유 ----------
-$("shareBtn").addEventListener("click", async () => {
-  const url = "https://ge323.github.io/gongjakso/awake/";
-  const where = myNo ? addr(myNo) : "창문";
-  const text = `🌙 지금 ${where}에 불 켜져 있어요\n깨어 있으면 들러서 👋 해줘요\n\n👉 ${url}`;
-  if (navigator.share) {
+$("shareBtn").addEventListener("click", openCard);
+
+// ---------- 🎯 집중 세션 ----------
+function sessionLeft() {
+  if (!sessionGoal) return 0;
+  return Math.max(0, sessionGoal - sessionSec - liveExtra());
+}
+
+function updateFocus() {
+  const box = $("focus");
+  if (!db || !myNo) { box.hidden = true; return; }
+  box.hidden = false;
+  const running = !!sessionGoal;
+  box.classList.toggle("is-running", running);
+  $("focusPick").hidden = running;
+  $("focusRun").hidden = !running;
+  if (running) {
+    const left = sessionLeft();
+    const label = sessionGoal >= 3600 ? `${sessionGoal / 3600}시간` : `${sessionGoal / 60}분`;
+    $("focusTitle").textContent = `${label} 집중 중`;
+    $("focusLeft").textContent = hms(left);
+    $("focusFill").style.width = `${Math.min(100, ((sessionGoal - left) / sessionGoal) * 100)}%`;
+    $("focusInfo").textContent = "다른 앱은 3분까지 괜찮아요 · 그 이상 나가면 실패";
+    // 화면상 시간이 다 되면 서버에 확인 (서버가 별을 줌)
+    if (left <= 0 && !sessionClosing) {
+      sessionClosing = true;
+      lightWindow();
+    }
+  } else {
+    $("focusTitle").textContent = "집중 세션";
+    $("focusLeft").textContent = myStars ? `별 ${myStars}개` : "";
+    $("focusInfo").textContent = "끝까지 켜 두면 내 창문에 별이 생겨요 · 3분 넘게 나가면 실패";
+  }
+}
+
+document.querySelectorAll("#focusPick [data-min]").forEach((b) => {
+  b.addEventListener("click", async () => {
+    if (!db || !myNo) return;
+    await lightWindow();   // 지금까지 시간 먼저 정리
+    const { data, error } = await db
+      .rpc("start_session", { p_player_id: getPlayerId(), p_minutes: Number(b.dataset.min) })
+      .single();
+    if (error || !data) {
+      showToast(error && /[가-힣]/.test(error.message || "") ? error.message : "시작하지 못했어요 😢");
+      return;
+    }
+    sessionGoal = Number(data.my_session_goal);
+    sessionSec = 0;
+    syncedAt = performance.now();
+    track();
+    updateFocus();
+    showToast(`${b.textContent} 집중 시작! 화면을 켜 두면 시간이 쌓여요`);
+  });
+});
+
+let stopArmed = false;
+$("focusStop").addEventListener("click", async () => {
+  const btn = $("focusStop");
+  if (!stopArmed) {
+    stopArmed = true;
+    btn.textContent = "정말 그만둘까요?";
+    btn.classList.add("is-armed");
+    setTimeout(() => { stopArmed = false; btn.textContent = "그만두기"; btn.classList.remove("is-armed"); }, 3000);
+    return;
+  }
+  stopArmed = false;
+  btn.textContent = "그만두기";
+  btn.classList.remove("is-armed");
+  await db.rpc("stop_session", { p_player_id: getPlayerId() });
+  sessionGoal = null;
+  sessionSec = 0;
+  track();
+  updateFocus();
+  showToast("집중 세션을 그만뒀어요");
+});
+
+function onSessionDone(goal) {
+  const label = goal >= 3600 ? `${goal / 3600}시간` : `${(goal || 0) / 60}분`;
+  showToast(`⭐ ${label} 집중 성공! 내 창문에 별이 생겼어요`);
+  pops.set(myNo, frame);
+  lightAt = frame;
+  if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+  loadMyDays();
+  setTimeout(openCard, 1600);
+}
+
+// ---------- 🤝 함께 깨어 있던 이웃 (오늘 밤, 이 기기 기준) ----------
+const NB_KEY = "awake-neighbors";
+
+function nightKey() {
+  // 서버와 같은 기준: 한국 시각 새벽 6시에 하루가 바뀜
+  return new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+function loadNeighbors() {
+  try {
+    const v = JSON.parse(localStorage.getItem(NB_KEY));
+    if (v && v.d === nightKey() && Array.isArray(v.n)) return new Set(v.n);
+  } catch (e) {}
+  return new Set();
+}
+
+function rememberNeighbors() {
+  if (!myNo || document.visibilityState !== "visible") return;
+  const set = loadNeighbors();
+  const before = set.size;
+  for (const n of online.keys()) if (n !== myNo) set.add(n);
+  if (set.size === before) return;
+  try { localStorage.setItem(NB_KEY, JSON.stringify({ d: nightKey(), n: [...set].slice(-500) })); } catch (e) {}
+}
+
+// ---------- 📅 불빛 달력 (최근 12주) ----------
+async function loadMyDays() {
+  if (!db) return;
+  const { data, error } = await db.rpc("get_my_days", { p_player_id: getPlayerId() });
+  if (error || !Array.isArray(data)) return;
+  myDays = new Map(data.map((d) => [String(d.d).slice(0, 10), { s: Number(d.s) || 0, st: Number(d.st) || 0 }]));
+  renderDays();
+}
+
+function dayLevel(sec) {
+  if (sec <= 0) return 0;
+  if (sec < 10 * 60) return 1;
+  if (sec < 30 * 60) return 2;
+  if (sec < 60 * 60) return 3;
+  return 4;
+}
+
+function renderDays() {
+  const box = $("days");
+  if (!db || !myNo) { box.hidden = true; return; }
+  box.hidden = false;
+  const today = nightKey();
+  const base = new Date(today + "T00:00:00Z");
+  const grid = $("daysGrid");
+  const cells = [];
+  let lit = 0, stars = 0;
+  for (let i = 83; i >= 0; i--) {
+    const d = new Date(base.getTime() - i * 86400000).toISOString().slice(0, 10);
+    const rec = myDays.get(d) || { s: 0, st: 0 };
+    const sec = d === today ? Math.max(rec.s, myToday + liveExtra()) : rec.s;
+    if (sec >= 600) lit++;
+    stars += rec.st;
+    const [, mm, dd] = d.split("-").map(Number);
+    cells.push(`<div class="day lv${dayLevel(sec)}${rec.st ? " has-star" : ""}${d === today ? " is-today" : ""}" title="${mm}월 ${dd}일 · ${sec ? dur(sec) : "꺼짐"}${rec.st ? ` · 별 ${rec.st}` : ""}"></div>`);
+  }
+  grid.innerHTML = cells.join("");
+
+  // 연속 기록: 10분 이상 켠 날이 이어진 수 (오늘 아직 10분 전이면 어제부터 셈)
+  let streak = 0;
+  for (let i = 0; i < 84; i++) {
+    const d = new Date(base.getTime() - i * 86400000).toISOString().slice(0, 10);
+    const sec = d === today ? Math.max((myDays.get(d) || {}).s || 0, myToday + liveExtra()) : (myDays.get(d) || {}).s || 0;
+    if (sec >= 600) streak++;
+    else if (i === 0) continue;
+    else break;
+  }
+  $("daysSum").innerHTML = `연속 <b>${streak}일</b> · 12주 중 ${lit}일`;
+  renderDays.streak = streak;
+}
+
+// ---------- 🌠 그 순간에만 보이는 장면 ----------
+function isMeteorTime() {
+  const m = skyClock().min;
+  return m >= 180 && m < 195;
+}
+
+function checkMoments() {
+  if (!myNo) return;   // 불을 켠 뒤부터
+  const { min, doy } = skyClock();
+  const hour = Math.floor(min / 60) % 24;
+  // 정각 파도 (매 정각 첫 1분 동안 한 번)
+  if (min % 60 < 1 && lastWaveHour !== hour) {
+    lastWaveHour = hour;
+    hourWaveAt = frame;
+    showToast(`${hour}시 정각 · 단지에 불빛 파도가 지나가요`);
+  }
+  const key = nightKey();
+  const once = (name, text) => {
+    const k = `awake-moment-${name}`;
     try {
+      if (localStorage.getItem(k) === key) return;
+      localStorage.setItem(k, key);
+    } catch (e) {}
+    showToast(text);
+  };
+  if (isMeteorTime()) once("meteor", "새벽 3시, 별똥별이 쏟아지고 있어요");
+  const { rise } = sunTimes(doy);
+  if (Math.abs(min - rise) < 5) once("sunrise", "해가 떠요. 밤새 불 켜 둔 사람들, 수고했어요");
+}
+
+// ---------- 🖼️ 오늘 기록 카드 (1080×1920, 인스타 스토리 크기) ----------
+let cardBlob = null;
+
+function cardFont(weight, size) {
+  return `${weight} ${size}px "Pretendard Variable", Pretendard, -apple-system, "Noto Sans KR", sans-serif`;
+}
+
+async function makeCard() {
+  const c = document.createElement("canvas");
+  c.width = 1080;
+  c.height = 1920;
+  const g = c.getContext("2d");
+  g.fillStyle = "#0b0d14";
+  g.fillRect(0, 0, 1080, 1920);
+
+  // 내 창문이 있는 구역의 지금 풍경
+  const block = myNo ? Math.floor((myNo - 1) / PER_BLOCK) : 0;
+  g.imageSmoothingEnabled = false;
+  g.drawImage(town, block * BLOCK_W * 2, 0, BLOCK_W * 2, H * 2, 0, 140, 1080, 1440);
+
+  // 위 띠
+  const k = new Date(Date.now() + tzOffset() * 60000);
+  g.fillStyle = "rgba(8,11,22,0.55)";
+  g.fillRect(0, 140, 1080, 120);
+  g.fillStyle = "#f2f4f8";
+  g.font = cardFont(800, 46);
+  g.textBaseline = "middle";
+  g.fillText("지금 깨어 있는 사람", 56, 200);
+  g.font = cardFont(600, 34);
+  g.fillStyle = "#c3c9d6";
+  g.textAlign = "right";
+  g.fillText(`${k.getUTCMonth() + 1}월 ${k.getUTCDate()}일`, 1024, 200);
+  g.textAlign = "left";
+
+  // 아래 기록
+  const extra = liveExtra();
+  const nb = loadNeighbors().size;
+  const today = nightKey();
+  const starsToday = (myDays.get(today) || {}).st || 0;
+  let y = 1660;
+  g.fillStyle = "#fcd34d";
+  g.font = cardFont(800, 64);
+  g.fillText(myNo ? addr(myNo) : "", 56, y);
+  y += 96;
+  g.fillStyle = "#c9ccd2";
+  g.font = cardFont(600, 36);
+  g.fillText("오늘 불 켜둔 시간", 56, y);
+  g.fillStyle = "#f2f4f8";
+  g.font = cardFont(800, 52);
+  g.textAlign = "right";
+  g.fillText(hms(myToday + extra), 1024, y);
+  g.textAlign = "left";
+  y += 76;
+  const facts = [
+    nb ? `함께 깨어 있던 이웃 ${nb}명` : "오늘은 조용히 혼자 깨어 있었어요",
+    starsToday ? `집중 세션 성공 ${starsToday}번` : null,
+    renderDays.streak ? `연속 ${renderDays.streak}일째` : null,
+  ].filter(Boolean);
+  g.fillStyle = "#e3e7ef";
+  g.font = cardFont(600, 36);
+  g.fillText(facts.join(" · "), 56, y);
+
+  g.fillStyle = "#6b7390";
+  g.font = cardFont(600, 28);
+  g.fillText("ge323.github.io/gongjakso/awake", 56, 1880);
+
+  return new Promise((res) => c.toBlob((b) => res(b), "image/png"));
+}
+
+async function openCard() {
+  if (!myNo) return;
+  try { if (document.fonts) await document.fonts.ready; } catch (e) {}
+  cardBlob = await makeCard();
+  if (!cardBlob) { showToast("카드를 만들지 못했어요 😢"); return; }
+  const img = $("cardImg");
+  if (img.src) URL.revokeObjectURL(img.src);
+  img.src = URL.createObjectURL(cardBlob);
+  $("cardModal").hidden = false;
+}
+
+$("cardClose").addEventListener("click", () => { $("cardModal").hidden = true; });
+$("cardModal").addEventListener("click", (e) => { if (e.target.id === "cardModal") $("cardModal").hidden = true; });
+
+$("cardSave").addEventListener("click", () => {
+  if (!cardBlob) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(cardBlob);
+  a.download = `깨어있는사람-${nightKey()}.png`;
+  a.click();
+});
+
+$("cardShare").addEventListener("click", async () => {
+  if (!cardBlob) return;
+  const url = "https://ge323.github.io/gongjakso/awake/";
+  const text = `🌙 ${myNo ? addr(myNo) : ""}에서 오늘 ${dur(myToday + liveExtra())} 불 켜 뒀어요\n같이 깨어 있어요 👉 ${url}`;
+  const file = new File([cardBlob], "awake.png", { type: "image/png" });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], text });
+      return;
+    }
+    if (navigator.share) {
       await navigator.share({ title: "지금 깨어 있는 사람", text });
       return;
-    } catch (e) {
-      if (e.name === "AbortError") return;
     }
+  } catch (e) {
+    if (e.name === "AbortError") return;
   }
   try {
     await navigator.clipboard.writeText(text);
-    showToast("복사했어요! 친구에게 보내보세요 💌");
+    showToast("문구를 복사했어요. 이미지는 저장해서 같이 올려 주세요");
   } catch (e) {
-    showToast("복사에 실패했어요 😢");
+    showToast("공유가 안 되는 브라우저예요. 이미지 저장을 눌러 주세요");
   }
 });
 
+// 알림이 겹치면 덮어쓰지 않고 차례대로 (최대 3개 대기)
+const toastQueue = [];
+let toastBusy = false;
+
 function showToast(message) {
+  if (toastBusy) {
+    if (toastQueue[toastQueue.length - 1] !== message && toastQueue.length < 3) toastQueue.push(message);
+    return;
+  }
+  toastBusy = true;
   toastEl.textContent = message;
   toastEl.classList.add("is-show");
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => toastEl.classList.remove("is-show"), 2200);
+  setTimeout(() => {
+    toastEl.classList.remove("is-show");
+    setTimeout(() => {
+      toastBusy = false;
+      if (toastQueue.length) showToast(toastQueue.shift());
+    }, 260);
+  }, 2200);
 }
 
 // ---------- 시작 ----------
@@ -1599,6 +2004,7 @@ function showToast(message) {
   if (!db) return;
   const ok = await lightWindow();
   await loadWindows();
+  loadMyDays();
   if (ok) {
     joinRoom();
     // 내 창문이 화면 밖이면 보이게
