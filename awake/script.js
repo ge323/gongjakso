@@ -771,39 +771,57 @@ function doorX(n) {
 
 function makeWalker(n, c, x, v, mode, tx) {
   return {
-    n, c, x, v, mode, tx, age: 0, dist: 0,
+    n, c, x, v, mode, tx, age: 0,
     fade: mode === "in" ? 1 : 0,
     skin: SKINS[Math.floor(rand(n * 11) * SKINS.length)],
     hair: HAIRS[Math.floor(rand(n * 17) * HAIRS.length)],
+    // 나간 사람: 2~4분 동안 동네를 서성이다가 떠남
+    life: (120 + Math.random() * 120) * 60,
+    rest: 0, turnAt: 0,
   };
 }
 
+function blockEdges(n) {
+  const { block } = slotOf(n);
+  return [block * BLOCK_W - 8, (block + 1) * BLOCK_W + 8];
+}
+
 function walkIn(n, c, fromX) {
-  if (walkers.some((w) => w.n === n && w.mode === "in")) return;
-  const W = blocks * BLOCK_W;
   const door = doorX(n);
+  // 서성이던 사람이 다시 들어오면: 그 자리에서 바로 현관으로
+  const wanderer = walkers.find((w) => w.n === n && w.mode === "out");
+  if (wanderer) {
+    Object.assign(wanderer, { mode: "in", tx: door, v: 0.9, c, rest: 0 });
+    arriving.add(n);
+    return;
+  }
+  if (walkers.some((w) => w.n === n && w.mode === "in")) return;
   let x = fromX;
   if (x === undefined) {
-    const dir = rand(n + frame * 0.37) < 0.5 ? -1 : 1;
-    x = Math.min(W + 6, Math.max(-6, door + dir * (60 + rand(n * 3 + frame) * 60)));
+    // 화면(그 구역) 왼쪽 끝이나 오른쪽 끝 중 가까운 쪽에서 걸어 들어옴
+    const [left, right] = blockEdges(n);
+    x = door - left < right - door ? left : right;
   }
   arriving.add(n);
-  walkers.push(makeWalker(n, c, x, x < door ? 0.9 : -0.9, "in", door));
+  walkers.push(makeWalker(n, c, x, 1.1, "in", door));
 }
 
 function walkOut(n, c) {
-  const dir = rand(n * 7 + frame * 0.13) < 0.5 ? -1 : 1;
-  walkers.push(makeWalker(n, c, doorX(n), dir * 0.7, "out"));
+  walkers.push(makeWalker(n, c, doorX(n), 0, "out"));
+  // 너무 많이 서성이면 가장 오래된 사람부터 먼저 떠나게
+  const outs = walkers.filter((w) => w.mode === "out" && !w.leaving);
+  if (outs.length > 15) outs[0].leaving = true;
 }
 
 function drawWalkers() {
   const night = nightLevel();
+  const W = blocks * BLOCK_W;
   for (let i = walkers.length - 1; i >= 0; i--) {
     const w = walkers[i];
     w.age++;
     let walking = true;
     if (w.mode === "in") {
-      if (Math.abs(w.tx - w.x) > 1 && w.age < 600) {
+      if (Math.abs(w.tx - w.x) > 1 && w.age < 900) {
         w.x += Math.sign(w.tx - w.x) * Math.min(Math.abs(w.v), Math.abs(w.tx - w.x));
       } else {
         // 현관 앞 도착 → 스르륵 들어가고 불 켜기
@@ -819,12 +837,30 @@ function drawWalkers() {
         }
       }
     } else {
-      // 현관에서 나와 걷다가 멀어지면 사라짐
       w.fade = Math.min(1, w.fade + 1 / 14);
-      w.x += w.v;
-      w.dist += Math.abs(w.v);
-      if (w.dist > 110) w.fade = Math.max(0, 1 - (w.dist - 110) / 30);
-      if (w.dist > 140) { walkers.splice(i, 1); continue; }
+      if (!w.leaving && w.age > w.life) w.leaving = true;
+      const [left, right] = blockEdges(w.n);
+      if (w.leaving) {
+        // 가까운 끝 쪽으로 걸어가다 화면 밖으로
+        if (!w.v || w.rest > 0) { w.v = (w.x - left < right - w.x ? -1 : 1) * 0.7; w.rest = 0; }
+        w.x += w.v;
+        if (w.x < left - 4 || w.x > right + 4) { walkers.splice(i, 1); continue; }
+      } else if (w.rest > 0) {
+        // 가만히 서 있기
+        w.rest--;
+        walking = false;
+      } else {
+        // 천천히 왔다 갔다
+        if (frame >= w.turnAt) {
+          if (Math.random() < 0.4) { w.rest = 60 + Math.random() * 180; w.v = 0; }
+          else w.v = (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.3);
+          w.turnAt = frame + 60 + Math.random() * 240;
+        }
+        w.x += w.v;
+        if (w.x < left + 12) { w.x = left + 12; w.v = Math.abs(w.v); }
+        if (w.x > right - 12) { w.x = right - 12; w.v = -Math.abs(w.v); }
+        if (!w.v) walking = false;
+      }
     }
 
     const x = Math.round(w.x), y = GROUND + 3;          // 발 위치
@@ -835,7 +871,8 @@ function drawWalkers() {
     tx.globalAlpha = Math.max(0, Math.min(1, w.fade));
     // 키 13칸: 머리카락 1 + 얼굴 3 + 몸 5 + 다리 4
     tx.fillStyle = shade("#2a2e3c");                     // 다리 (걸을 때 번갈아)
-    if (step) { tx.fillRect(x - 2, y - 4, 2, 4); tx.fillRect(x + 1, y - 3, 2, 3); }
+    if (!walking) { tx.fillRect(x - 2, y - 4, 2, 4); tx.fillRect(x + 1, y - 4, 2, 4); }   // 서 있기
+    else if (step) { tx.fillRect(x - 2, y - 4, 2, 4); tx.fillRect(x + 1, y - 3, 2, 3); }
     else { tx.fillRect(x - 2, y - 3, 2, 3); tx.fillRect(x + 1, y - 4, 2, 4); }
     tx.fillStyle = shade(COLORS[w.c] || COLORS[0]);      // 몸 (옷 = 그 사람 조명 색)
     tx.fillRect(x - 2, y - 9, 5, 5);
