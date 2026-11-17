@@ -721,9 +721,11 @@ function drawGround(W) {
 
   // 가로등 — 해가 지면 켜지고, 깊은 밤일수록 환하게 (편의점이 생기면 그 자리 가로등은 빼기)
   const store = townDone("편의점");
+  const park = townDone("놀이터");
   const night = nightLevel();
   for (let x = 120; x < W; x += 122) {
     if (store && x === 242) continue;
+    if (park && x === 120) continue;
     if (night > 0) {
       // 빛 기둥
       tx.fillStyle = `rgba(255, 214, 140, ${0.05 + night * 0.16})`;
@@ -791,7 +793,7 @@ function walkIn(n, c, fromX) {
   // 서성이던 사람이 다시 들어오면: 그 자리에서 바로 현관으로
   const wanderer = walkers.find((w) => w.n === n && w.mode === "out");
   if (wanderer) {
-    Object.assign(wanderer, { mode: "in", tx: door, v: 0.9, c, rest: 0 });
+    Object.assign(wanderer, { mode: "in", tx: door, v: 0.9, c, rest: 0, task: null, hidden: false, fade: 1 });
     arriving.add(n);
     return;
   }
@@ -811,6 +813,61 @@ function walkOut(n, c) {
   // 너무 많이 서성이면 가장 오래된 사람부터 먼저 떠나게
   const outs = walkers.filter((w) => w.mode === "out" && !w.leaving);
   if (outs.length > 15) outs[0].leaving = true;
+}
+
+// 서성이는 사람의 할 일: 🛝 그네 타기 / 🏪 편의점 들르기 (101~103동 구역에서만)
+function pickTask(w) {
+  if (slotOf(w.n).block !== 0 || Math.random() > 0.3) return false;
+  const opts = [];
+  const swingTaken = walkers.some((v) => v !== w && v.task && v.task.kind === "swing");
+  if (townDone("놀이터") && !swingTaken) opts.push({ kind: "swing", x: 107 });
+  if (townDone("편의점")) opts.push({ kind: "store", x: 254 });
+  if (!opts.length) return false;
+  w.task = { ...opts[Math.floor(Math.random() * opts.length)], on: false, t: 0 };
+  return true;
+}
+
+function doTask(w) {
+  const t = w.task;
+  if (!t.on) {
+    // 목적지까지 걸어가기
+    const d = t.x - w.x;
+    if (Math.abs(d) > 1) { w.x += Math.sign(d) * Math.min(0.5, Math.abs(d)); return true; }
+    w.x = t.x;
+    t.on = true;
+    t.t = t.kind === "swing" ? 300 + Math.random() * 300 : 180 + Math.random() * 240;
+    return false;
+  }
+  t.t--;
+  if (t.kind === "store") {
+    // 들어가서 잠시 안 보이다가 다시 나옴
+    w.fade = t.t > 20 ? Math.max(0, w.fade - 1 / 10) : Math.min(1, w.fade + 1 / 10);
+    w.hidden = w.fade <= 0;
+  }
+  if (t.t <= 0) {
+    w.task = null;
+    w.hidden = false;
+    w.turnAt = frame + 60;
+    w.v = (Math.random() < 0.5 ? -1 : 1) * 0.3;
+  }
+  return false;
+}
+
+// 그네 탄 모습: 의자에 앉아 다리를 앞으로
+function drawSwinger(w, night) {
+  const sw = swingSway();
+  const x = 106 + sw, y = GROUND - 8;                 // 의자 위
+  const shade = (hex) => mix(hex, "#0b0d14", Math.max(0, night * 0.15 - 0.15 * night));
+  tx.globalAlpha = Math.max(0, Math.min(1, w.fade));
+  tx.fillStyle = shade("#2a2e3c");
+  tx.fillRect(x + 1, y, 4, 2);                          // 앞으로 뻗은 다리
+  tx.fillStyle = shade(COLORS[w.c] || COLORS[0]);
+  tx.fillRect(x - 2, y - 5, 4, 5);                      // 몸
+  tx.fillStyle = shade(w.skin);
+  tx.fillRect(x - 2, y - 8, 3, 3);                      // 얼굴
+  tx.fillStyle = shade(w.hair);
+  tx.fillRect(x - 2, y - 9, 3, 1);
+  tx.globalAlpha = 1;
 }
 
 function drawWalkers() {
@@ -838,7 +895,7 @@ function drawWalkers() {
       }
     } else {
       w.fade = Math.min(1, w.fade + 1 / 14);
-      if (!w.leaving && w.age > w.life) w.leaving = true;
+      if (!w.leaving && w.age > w.life && !(w.task && w.task.on)) { w.leaving = true; w.task = null; w.hidden = false; }
       const [left, right] = blockEdges(w.n);
       if (w.leaving) {
         // 가까운 끝 쪽으로 걸어가다 화면 밖으로
@@ -849,9 +906,13 @@ function drawWalkers() {
         // 가만히 서 있기
         w.rest--;
         walking = false;
+      } else if (w.task) {
+        walking = doTask(w);
       } else {
-        // 천천히 왔다 갔다
-        if (frame >= w.turnAt) {
+        // 천천히 왔다 갔다 (가끔 그네를 타거나 편의점에 들름)
+        if (frame >= w.turnAt && pickTask(w)) {
+          walking = doTask(w);
+        } else if (frame >= w.turnAt) {
           if (Math.random() < 0.4) { w.rest = 60 + Math.random() * 180; w.v = 0; }
           else w.v = (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.3);
           w.turnAt = frame + 60 + Math.random() * 240;
@@ -862,6 +923,9 @@ function drawWalkers() {
         if (!w.v) walking = false;
       }
     }
+
+    if (w.hidden) continue;                              // 편의점 안에 들어가 있는 중
+    if (w.task && w.task.kind === "swing" && w.task.on) { drawSwinger(w, night); continue; }
 
     const x = Math.round(w.x), y = GROUND + 3;          // 발 위치
     const step = walking ? Math.floor(frame / 8) % 2 : 0;
@@ -885,23 +949,125 @@ function drawWalkers() {
   }
 }
 
+// 그네 흔들림 (그네 의자와 그네 탄 사람이 같이 움직이게)
+function swingSway() {
+  const rider = walkers.some((w) => w.task && w.task.kind === "swing" && w.task.on);
+  return Math.round(Math.sin(frame / (rider ? 22 : 30)) * (rider ? 4 : 2));
+}
+
+// ---------- 🎉 단지 목표가 생기는 순간 ----------
+// 접속해 있으면: "다 같이 켠 불로 ○○가 생겼어요!" + 반짝임
+// 나중에 들어왔으면: 지난번에 본 것과 비교해서 "새로 생겼어요" 한 번
+const GOAL_SEEN_KEY = "awake-goals-seen";
+let goalsReady = false;
+let goalsKnown = null;           // 지금까지 확인한 달성 목록
+const sparkles = [];             // 생기는 순간 반짝이
+
+const GOAL_SPOT = {
+  "놀이터": { x: 119, y: GROUND - 12 },
+  "편의점": { x: 242, y: GROUND - 14 },
+  "별똥별": { x: 180, y: 60 },
+  "버스": { x: 180, y: GROUND + 10 },
+};
+
+function checkGoals() {
+  if (!goalsReady || !myNo) return;
+  const done = TOWN_GOALS.filter((g) => townDone(g.name)).map((g) => g.name);
+  if (goalsKnown === null) {
+    // 처음 확인: 지난 방문 기록과 비교
+    let seen = null;
+    try { seen = JSON.parse(localStorage.getItem(GOAL_SEEN_KEY)); } catch (e) {}
+    goalsKnown = new Set(done);
+    if (Array.isArray(seen)) {
+      const fresh = done.filter((n) => !seen.includes(n));
+      if (fresh.length) {
+        const names = fresh.map((n) => { const g = TOWN_GOALS.find((t) => t.name === n); return `${g.icon} ${g.name}`; });
+        showToast(`새로 생겼어요: ${names.join(" · ")}`);
+        fresh.forEach(sparkleAt);
+      }
+    }
+    saveGoalsSeen(done);
+    return;
+  }
+  for (const n of done) {
+    if (goalsKnown.has(n)) continue;
+    goalsKnown.add(n);
+    const g = TOWN_GOALS.find((t) => t.name === n);
+    showToast(`다 같이 켠 불로 ${g.icon} ${g.name}${/[가-힣]$/.test(g.name) && (g.name.charCodeAt(g.name.length - 1) - 0xac00) % 28 ? "이" : "가"} 생겼어요!`);
+    sparkleAt(n);
+    if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+    saveGoalsSeen(done);
+  }
+}
+
+function saveGoalsSeen(done) {
+  try { localStorage.setItem(GOAL_SEEN_KEY, JSON.stringify(done)); } catch (e) {}
+}
+
+function sparkleAt(name) {
+  const spot = GOAL_SPOT[name];
+  if (!spot) return;
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 0.4 + Math.random() * 1.3;
+    sparkles.push({ x: spot.x, y: spot.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 0.6, life: 70 + Math.random() * 50, age: 0,
+      c: ["#fcd34d", "#fff7d6", "#ff8fb1", "#8ec5ff"][i % 4] });
+  }
+}
+
+function drawSparkles() {
+  for (let i = sparkles.length - 1; i >= 0; i--) {
+    const p = sparkles[i];
+    p.age++;
+    if (p.age > p.life) { sparkles.splice(i, 1); continue; }
+    p.x += p.vx; p.y += p.vy; p.vy += 0.025;
+    tx.globalAlpha = 1 - p.age / p.life;
+    tx.fillStyle = p.c;
+    const big = p.age % 20 < 10;
+    tx.fillRect(Math.round(p.x), Math.round(p.y), big ? 2 : 1, big ? 2 : 1);
+    tx.globalAlpha = 1;
+  }
+}
+
 // ---------- 단지 공동 목표로 생기는 것들 ----------
 function drawTownExtras(sky) {
-  // 🛝 놀이터 (101동과 102동 사이)
+  // 🛝 놀이터 (101동과 102동 사이): 그네 + 미끄럼틀 + 모래밭 + 작은 공원등
   if (townDone("놀이터")) {
-    tx.fillStyle = "#4a5270";
-    tx.fillRect(99, GROUND - 16, 2, 16);              // 그네 기둥
-    tx.fillRect(112, GROUND - 16, 2, 16);
-    tx.fillRect(99, GROUND - 16, 15, 2);
-    const sw = Math.round(Math.sin(frame / 30) * 2);
-    tx.fillRect(105 + sw, GROUND - 14, 1, 8);         // 그네 줄
+    const night = nightLevel();
+    const metal = mixHex("#4a5270", "#6f7894", amb);
+    // 모래밭
+    tx.fillStyle = mixHex("#5a4a34", "#c9a96b", amb);
+    tx.fillRect(97, GROUND - 2, 44, 3);
+    // 공원등 (밤에 놀이터를 비춤)
+    if (night > 0) {
+      tx.fillStyle = `rgba(255, 220, 150, ${0.06 + night * 0.14})`;
+      tx.beginPath();
+      tx.moveTo(118, GROUND - 26);
+      tx.lineTo(100, GROUND + 3);
+      tx.lineTo(138, GROUND + 3);
+      tx.closePath();
+      tx.fill();
+    }
+    tx.fillStyle = metal;
+    tx.fillRect(118, GROUND - 26, 1, 26);
+    tx.fillStyle = night > 0 ? "#fff0c4" : "#9aa0ad";
+    tx.fillRect(116, GROUND - 28, 5, 2);
+    // 그네 (기둥 2개 + 위 막대 + 줄 + 의자)
+    tx.fillStyle = metal;
+    tx.fillRect(99, GROUND - 20, 2, 20);
+    tx.fillRect(113, GROUND - 20, 2, 20);
+    tx.fillRect(99, GROUND - 21, 16, 2);
+    const sw = swingSway();
+    tx.fillRect(104 + sw, GROUND - 19, 1, 11);
+    tx.fillRect(109 + sw, GROUND - 19, 1, 11);
     tx.fillStyle = "#e0795a";
-    tx.fillRect(103 + sw, GROUND - 6, 5, 2);          // 그네 의자
-    tx.fillStyle = "#4a5270";
-    tx.fillRect(137, GROUND - 14, 2, 14);             // 미끄럼틀 사다리
-    for (let k = 0; k < 4; k++) tx.fillRect(135, GROUND - 3 - k * 3, 4, 1);
+    tx.fillRect(103 + sw, GROUND - 8, 8, 2);
+    // 미끄럼틀 (사다리 + 위 발판 + 미끄러지는 판)
+    tx.fillStyle = metal;
+    tx.fillRect(137, GROUND - 18, 2, 18);
+    for (let k = 0; k < 5; k++) tx.fillRect(135, GROUND - 3 - k * 3, 4, 1);
+    tx.fillRect(132, GROUND - 18, 7, 2);
     tx.fillStyle = "#e9b949";
-    for (let k = 0; k < 11; k++) tx.fillRect(136 - k, GROUND - 14 + Math.round(k * 1.3), 2, 2); // 미끄럼틀
+    for (let k = 0; k < 13; k++) tx.fillRect(131 - k, GROUND - 17 + Math.round(k * 1.25), 2, 2);
   }
 
   // 🏪 편의점 (102동과 103동 사이)
@@ -1260,6 +1426,7 @@ function draw() {
   }
   for (let n = 1; n <= blocks * PER_BLOCK; n++) drawWindow(n);
   drawWalkers();
+  drawSparkles();
   drawWeatherFront(W);
   drawEffects();
 }
@@ -1358,6 +1525,7 @@ function tick() {
   updateHud(extra);
   updateFocus();
   checkMoments();
+  checkGoals();
 }
 
 // 정보판을 누르면 시계만 남기고 접기 (기기에 기억)
@@ -2264,6 +2432,7 @@ function showToast(message) {
   if (!db) return;
   const ok = await lightWindow();
   await loadWindows();
+  goalsReady = true;
   loadMyDays();
   if (ok) {
     joinRoom();
