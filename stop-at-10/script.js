@@ -58,6 +58,8 @@ let stoppedAt = 0;
 let rafId = null;
 let lastResult = null;
 let myLastEntry = null; // 방금 등록한 내 기록 (랭킹에서 강조용)
+let roundPromise = null; // 이번 판 번호 (서버가 시작 시각 기록)
+let stopPromise = null; // 멈춤 기록 전송
 
 // ---------- 게임 흐름 ----------
 
@@ -65,6 +67,8 @@ function startGame(pressedAt) {
   state = "running";
   startTime = pressedAt;
   lastResult = null;
+  stopPromise = null;
+  roundPromise = startRound();
 
   timerEl.textContent = "0.00";
   timerEl.classList.remove("is-hidden", "is-result");
@@ -102,7 +106,40 @@ function stopGame(pressedAt) {
 
   state = "result";
   stoppedAt = pressedAt;
+  stopPromise = stopRound(roundPromise, elapsed);
   showResult(elapsed);
+}
+
+// ---------- 서버 시간 기록 (주작 방지) ----------
+// 시작·멈춤 순간에 서버도 시각을 적어 두고, 등록할 때 브라우저 기록과 비교
+async function startRound() {
+  if (!db) return null;
+  try {
+    const { data, error } = await db.rpc("start_round", {
+      p_player_id: getPlayerId(),
+    });
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+async function stopRound(promise, elapsed) {
+  const roundId = await promise;
+  if (!roundId) return null;
+  try {
+    const { error } = await db.rpc("stop_round", {
+      p_round_id: roundId,
+      p_elapsed: elapsed,
+    });
+    if (error) throw error;
+    return roundId;
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
 }
 
 function showResult(elapsed) {
@@ -324,9 +361,17 @@ async function submitScore(e) {
   submitBtn.disabled = true;
   submitBtn.textContent = "등록 중...";
 
+  const roundId = stopPromise ? await stopPromise : null;
+  if (!roundId) {
+    showToast("기록을 확인하지 못했어요. 다시 도전해주세요 😢");
+    submitBtn.textContent = "등록 불가";
+    return;
+  }
+
   // DB 함수가 알아서 처리: 처음이면 추가 / 더 잘했으면 교체 / 아니면 기존 기록 유지
   const { data, error } = await db
     .rpc("submit_score", {
+      p_round_id: roundId,
       p_player_id: getPlayerId(),
       p_nickname: nickname,
       p_elapsed: elapsed,
@@ -335,15 +380,30 @@ async function submitScore(e) {
 
   if (error) {
     console.error(error);
-    showToast("등록에 실패했어요. 다시 시도해주세요 😢");
-    submitBtn.disabled = false;
-    submitBtn.textContent = "랭킹 등록";
+    // 서버가 보낸 한글 안내는 그대로 보여주기
+    const msg = /[가-힣]/.test(error.message || "")
+      ? error.message
+      : "등록에 실패했어요. 다시 시도해주세요 😢";
+    showToast(msg);
+    // 판 번호는 한 번만 쓸 수 있어서, 확인 실패면 다시 도전해야 함
+    const retryable = !/확인할 수 없|잠시 후|너무 많이/.test(msg);
+    submitBtn.disabled = !retryable;
+    submitBtn.textContent = retryable ? "랭킹 등록" : "등록 불가";
     return;
   }
 
   lastResult.submitted = true;
-  myLastEntry = { id: data.rank_id };
   saveNickname(nickname);
+
+  // 정확히 10.000초 → 확인 후 공개
+  if (data.result === "review") {
+    rankForm.hidden = true;
+    myRankEl.hidden = false;
+    myRankEl.textContent = `👑 10.000초! 확인 후 명예의 전당과 랭킹에 올라가요`;
+    return;
+  }
+
+  myLastEntry = { id: data.rank_id };
 
   // 내 순위 = 내 최고 기록보다 오차가 작은 기록 수 + 1
   const { count } = await db
