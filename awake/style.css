@@ -521,13 +521,25 @@ body.is-mood .town-view {
   align-items: center;
 }
 
+/* 그림 폭은 script.js가 남은 공간을 재서 --mood-w로 정해 줌 */
 body.is-mood .scroller,
-body.is-mood .town-bar,
-body.is-mood .peek {
+body.is-mood .town-bar {
   width: 100%;
-  max-width: max(160px, min(100%, calc((100dvh - 330px) * 0.75)));
+  max-width: var(--mood-w, 300px);
   margin-left: auto;
   margin-right: auto;
+}
+
+/* 창문을 눌렀을 때 정보 상자: 그림 폭에 끼우지 않고 화면 아래에 떠 있는 카드로 */
+body.is-mood .peek {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 30;
+  max-width: 440px;
+  margin: 0 auto;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
 body.is-mood .sound-btn {

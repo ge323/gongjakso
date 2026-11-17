@@ -1331,7 +1331,19 @@ try { if (localStorage.getItem(HUD_KEY) === "min") hudEl.classList.add("is-colla
 function toggleHud() {
   const min = hudEl.classList.toggle("is-collapsed");
   try { localStorage.setItem(HUD_KEY, min ? "min" : "full"); } catch (e) {}
+  fitMood();
 }
+
+// 화면 켜 두기: 시계·아래 글줄을 빼고 남은 높이에 맞춰 그림을 최대한 크게 (그림 비율 3:4)
+function fitMood() {
+  if (!moodOn) return;
+  const topPad = 64, gap = 18, bar = 44, bottomPad = 20;
+  const availH = window.innerHeight - topPad - hudEl.offsetHeight - gap - bar - bottomPad;
+  const w = Math.max(180, Math.min(window.innerWidth - 24, availH * (BLOCK_W / H)));
+  document.body.style.setProperty("--mood-w", `${Math.floor(w)}px`);
+}
+
+window.addEventListener("resize", fitMood);
 
 hudEl.addEventListener("click", toggleHud);
 hudEl.addEventListener("keydown", (e) => {
@@ -1805,6 +1817,7 @@ function releaseLock() {
 $("moodBtn").addEventListener("click", async () => {
   moodOn = true;
   document.body.classList.add("is-mood");
+  requestAnimationFrame(fitMood);
   $("moodTop").hidden = false;
   closePeek();
   tick();
