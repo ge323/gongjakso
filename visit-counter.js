@@ -1,5 +1,6 @@
-// 공작소 방문자 수 — 모든 페이지에서 불러도 됨
-// 숫자는 id="visit-count" 요소가 있는 페이지(메인)에만 표시
+// 공작소 방문자 수 — 모든 페이지에서 불러옴
+// id="visit-count" 요소가 있으면 숫자 표시
+//   메인: 공작소 전체 방문자 / 공작 페이지: 그 공작의 방문자
 (() => {
   const SUPABASE_URL = "https://mamunluhjcrmharnrqdz.supabase.co";
   const SUPABASE_KEY = "sb_publishable_eh0u-VyFBgXRSovoBPrgsQ_F2pYPjWU";
@@ -9,6 +10,14 @@
   const OLD_KEYS = ["stop-at-10-player", "pixel-fish-player", "awake-player"];
   const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // 지금 페이지 이름: /gongjakso/ → '' (메인), /gongjakso/stop-at-10/ → 'stop-at-10'
+  const parts = location.pathname
+    .replace(/index\.html$/, "")
+    .split("/")
+    .filter(Boolean);
+  const at = parts.indexOf("gongjakso");
+  const page = at >= 0 ? parts[at + 1] || "" : parts[parts.length - 1] || "";
 
   const makeId = () =>
     (window.crypto && crypto.randomUUID && crypto.randomUUID()) ||
@@ -37,14 +46,16 @@
   fetch(SUPABASE_URL + "/rest/v1/rpc/visit_site", {
     method: "POST",
     headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ p_player_id: id, p_old_ids: oldIds }),
+    body: JSON.stringify({ p_player_id: id, p_old_ids: oldIds, p_page: page }),
   })
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => {
       const el = document.getElementById("visit-count");
       if (!d || !el) return;
       const n = (v) => Number(v).toLocaleString("ko-KR");
-      el.textContent = `누적 ${n(d.total)}명 · 오늘 ${n(d.today)}명`;
+      const total = page ? d.page_total : d.total;
+      const today = page ? d.page_today : d.today;
+      el.textContent = `누적 ${n(total)}명 · 오늘 ${n(today)}명`;
       el.hidden = false;
     })
     .catch(() => {});
