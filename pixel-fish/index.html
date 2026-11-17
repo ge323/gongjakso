@@ -1,108 +1,175 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>🐟 픽셀 어항</title>
-  <meta name="description" content="내 물고기를 만들어 모두의 어항에 넣어보세요 | 아이디어 공작소 #2">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    />
+    <title>🐟 픽셀 어항</title>
+    <meta
+      name="description"
+      content="내 물고기를 만들어 모두의 어항에 넣어보세요 | 아이디어 공작소 #2"
+    />
 
-  <!-- 링크 공유 시 미리보기 (카톡, 인스타 등) -->
-  <meta property="og:title" content="🐟 픽셀 어항">
-  <meta property="og:description" content="내 물고기를 만들어 모두의 어항에 넣어보세요!">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://ge323.github.io/gongjakso/pixel-fish/">
-  <meta property="og:image" content="https://ge323.github.io/gongjakso/pixel-fish/og-image.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta name="twitter:card" content="summary_large_image">
+    <!-- 링크 공유 시 미리보기 (카톡, 인스타 등) -->
+    <meta property="og:title" content="🐟 픽셀 어항" />
+    <meta
+      property="og:description"
+      content="내 물고기를 만들어 모두의 어항에 넣어보세요!"
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://ge323.github.io/gongjakso/pixel-fish/"
+    />
+    <meta
+      property="og:image"
+      content="https://ge323.github.io/gongjakso/pixel-fish/og-image.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
 
-  <link rel="stylesheet" href="style.css?v=4">
-  <!-- DB (Supabase) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=4" defer></script>
-</head>
-<body>
-  <main class="app">
-    <header class="header">
-      <p class="badge">아이디어 공작소 #2</p>
-      <h1 class="title">🐟 픽셀 어항</h1>
-      <p class="subtitle">내 물고기를 만들어 모두의 어항에 넣어보세요</p>
-    </header>
+    <link rel="stylesheet" href="style.css?v=4" />
+    <!-- DB (Supabase) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js?v=4" defer></script>
+    <script src="../visit-counter.js?v=3" defer></script>
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <p class="badge">아이디어 공작소 #2</p>
+        <h1 class="title">🐟 픽셀 어항</h1>
+        <p class="subtitle">내 물고기를 만들어 모두의 어항에 넣어보세요</p>
+      </header>
 
-    <!-- 어항 -->
-    <section class="tank-wrap">
-      <canvas id="tank" class="tank" width="720" height="540" aria-label="물고기들이 헤엄치는 어항"></canvas>
-      <div class="tank-bar">
-        <span id="count" class="count">어항을 채우는 중…</span>
-        <span id="tip" class="tip">물고기를 눌러보세요</span>
-        <button id="findBtn" class="find-btn" type="button" hidden>📍 내 물고기 찾기</button>
-      </div>
-    </section>
+      <!-- 어항 -->
+      <section class="tank-wrap">
+        <canvas
+          id="tank"
+          class="tank"
+          width="720"
+          height="540"
+          aria-label="물고기들이 헤엄치는 어항"
+        ></canvas>
+        <div class="tank-bar">
+          <span id="count" class="count">어항을 채우는 중…</span>
+          <span id="tip" class="tip">물고기를 눌러보세요</span>
+          <button id="findBtn" class="find-btn" type="button" hidden>
+            📍 내 물고기 찾기
+          </button>
+        </div>
+      </section>
 
-    <!-- 업데이트 목표 진행 막대 -->
-    <section id="goal" class="goal" hidden>
-      <div class="goal-top">
-        <span id="goalTitle" class="goal-title"></span>
-        <span id="goalCount" class="goal-count"></span>
-      </div>
-      <div class="goal-bar"><div id="goalFill" class="goal-fill"></div></div>
-      <p id="goalNext" class="goal-next"></p>
-    </section>
+      <!-- 업데이트 목표 진행 막대 -->
+      <section id="goal" class="goal" hidden>
+        <div class="goal-top">
+          <span id="goalTitle" class="goal-title"></span>
+          <span id="goalCount" class="goal-count"></span>
+        </div>
+        <div class="goal-bar"><div id="goalFill" class="goal-fill"></div></div>
+        <p id="goalNext" class="goal-next"></p>
+      </section>
 
-    <div class="actions">
-      <button id="openEditor" class="btn btn-main" type="button">🐟 내 물고기 만들기</button>
-      <button id="shareBtn" class="btn btn-sub" type="button" hidden>📋 내 물고기 자랑하기</button>
-    </div>
-
-    <!-- 물고기 꾸미기 -->
-    <section id="editor" class="editor" hidden>
-      <h2 class="editor-title">🎨 물고기 꾸미기</h2>
-
-      <div class="preview-box">
-        <canvas id="preview" class="preview" width="480" height="300" aria-label="내 물고기 미리보기"></canvas>
-        <p id="previewName" class="preview-name">이름 없는 물고기</p>
-      </div>
-
-      <div class="field">
-        <p class="label">모양</p>
-        <div id="shapes" class="chips"></div>
-      </div>
-
-      <div class="field">
-        <p class="label">몸 색</p>
-        <div id="bodyColors" class="swatches"></div>
-      </div>
-
-      <div class="field">
-        <p class="label">지느러미 색</p>
-        <div id="finColors" class="swatches"></div>
-      </div>
-
-      <div class="field">
-        <p class="label">무늬</p>
-        <div id="patterns" class="chips"></div>
-      </div>
-
-      <div class="field">
-        <label class="label" for="fishName">이름 <span class="limit">(최대 8자)</span></label>
-        <input id="fishName" class="input" type="text" maxlength="8" placeholder="예) 공작붕어" autocomplete="off">
+      <div class="actions">
+        <button id="openEditor" class="btn btn-main" type="button">
+          🐟 내 물고기 만들기
+        </button>
+        <button id="shareBtn" class="btn btn-sub" type="button" hidden>
+          📋 내 물고기 자랑하기
+        </button>
       </div>
 
-      <div class="field">
-        <label class="label" for="fishMsg">한마디 <span class="limit">(최대 20자, 선택)</span></label>
-        <input id="fishMsg" class="input" type="text" maxlength="20" placeholder="예) 여기 물 좋네요" autocomplete="off">
-      </div>
+      <!-- 물고기 꾸미기 -->
+      <section id="editor" class="editor" hidden>
+        <h2 class="editor-title">🎨 물고기 꾸미기</h2>
 
-      <button id="saveBtn" class="btn btn-main" type="button">🫧 어항에 넣기</button>
-      <button id="randomBtn" class="btn btn-sub" type="button">🎲 랜덤으로 꾸미기</button>
-    </section>
+        <div class="preview-box">
+          <canvas
+            id="preview"
+            class="preview"
+            width="480"
+            height="300"
+            aria-label="내 물고기 미리보기"
+          ></canvas>
+          <p id="previewName" class="preview-name">이름 없는 물고기</p>
+        </div>
 
-    <footer class="footer">
-      <p>의뢰: 공작소장 · 🛠️ 아이디어 공작소</p>
-      <p><a class="home-link" href="https://ge323.github.io/gongjakso/">다른 공작품 보러가기 →</a></p>
-    </footer>
-  </main>
+        <div class="field">
+          <p class="label">모양</p>
+          <div id="shapes" class="chips"></div>
+        </div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-</body>
+        <div class="field">
+          <p class="label">몸 색</p>
+          <div id="bodyColors" class="swatches"></div>
+        </div>
+
+        <div class="field">
+          <p class="label">지느러미 색</p>
+          <div id="finColors" class="swatches"></div>
+        </div>
+
+        <div class="field">
+          <p class="label">무늬</p>
+          <div id="patterns" class="chips"></div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="fishName"
+            >이름 <span class="limit">(최대 8자)</span></label
+          >
+          <input
+            id="fishName"
+            class="input"
+            type="text"
+            maxlength="8"
+            placeholder="예) 공작붕어"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="field">
+          <label class="label" for="fishMsg"
+            >한마디 <span class="limit">(최대 20자, 선택)</span></label
+          >
+          <input
+            id="fishMsg"
+            class="input"
+            type="text"
+            maxlength="20"
+            placeholder="예) 여기 물 좋네요"
+            autocomplete="off"
+          />
+        </div>
+
+        <button id="saveBtn" class="btn btn-main" type="button">
+          🫧 어항에 넣기
+        </button>
+        <button id="randomBtn" class="btn btn-sub" type="button">
+          🎲 랜덤으로 꾸미기
+        </button>
+      </section>
+
+      <footer class="footer">
+        <p>의뢰: 공작소장 · 🛠️ 아이디어 공작소</p>
+        <p id="visit-count" hidden style="font-size: 0.8rem; opacity: 0.6"></p>
+        <p>
+          <a class="home-link" href="https://ge323.github.io/gongjakso/"
+            >다른 공작품 보러가기 →</a
+          >
+        </p>
+        <p
+          id="visit-count"
+          hidden
+          style="font-size: 0.8rem; opacity: 0.6; text-align: center"
+        ></p>
+        <script src="visit-counter.js" defer></script>
+      </footer>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
 </html>
