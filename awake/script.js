@@ -41,19 +41,19 @@ const STATUS_TEXT = ["✨ 그냥 깨어 있어요", "📖 공부하는 중", "�
 
 // 불을 오래 켜 둘수록 창문이 꾸며져요 (총 켜둔 시간 기준)
 const GROWTH = [
-  { h: 1, icon: "🌱", name: "새싹" },
-  { h: 5, icon: "🪴", name: "화분" },
-  { h: 20, icon: "🪟", name: "커튼" },
-  { h: 50, icon: "🐈", name: "고양이" },
-  { h: 100, icon: "✨", name: "꼬마전구" },
+  { h: 1 / 6, icon: "🌱", name: "새싹" },   // 10분
+  { h: 1, icon: "🪴", name: "화분" },
+  { h: 5, icon: "🪟", name: "커튼" },
+  { h: 20, icon: "🐈", name: "고양이" },
+  { h: 50, icon: "✨", name: "꼬마전구" },
 ];
 
 // 단지 공동 목표 (모두가 켜둔 시간의 합) → 달성하면 동네에 자동으로 생겨요
 const TOWN_GOALS = [
-  { h: 10, icon: "🛝", name: "놀이터" },
-  { h: 30, icon: "🏪", name: "편의점" },
-  { h: 60, icon: "🌠", name: "별똥별" },
-  { h: 100, icon: "🚌", name: "버스" },
+  { h: 3, icon: "🛝", name: "놀이터" },
+  { h: 10, icon: "🏪", name: "편의점" },
+  { h: 30, icon: "🌠", name: "별똥별" },
+  { h: 60, icon: "🚌", name: "버스" },
 ];
 
 // ---------- 요소 ----------
@@ -232,8 +232,8 @@ function stateOf(n) {
 
 // ---------- 서울 실제 날씨 (Open-Meteo, 키 필요 없음) ----------
 // 테스트·영상 촬영용:  ?weather=clear | cloudy | overcast | fog | drizzle | rain | snow | thunder
-const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.978"
-  + "&current=temperature_2m,weather_code,cloud_cover&timezone=Asia%2FSeoul";
+const weatherUrl = () => "https://api.open-meteo.com/v1/forecast"
+  + `?latitude=${place.lat}&longitude=${place.lng}&current=temperature_2m,weather_code,cloud_cover`;
 const WEATHER_MS = 15 * 60 * 1000;   // 15분마다 새로고침
 const WEATHER_TEST = {
   clear: [0, 0], cloudy: [2, 55], overcast: [3, 100], fog: [45, 100],
@@ -279,7 +279,7 @@ async function loadWeather() {
     return;
   }
   try {
-    const res = await fetch(WEATHER_URL);
+    const res = await fetch(weatherUrl());
     const j = await res.json();
     const c = j.current || {};
     if (typeof c.weather_code === "number") setWeather(c.weather_code, Number(c.cloud_cover) || 0, c.temperature_2m);
@@ -395,27 +395,100 @@ function drawWeatherFront(W) {
   }
 }
 
-// ---------- 하늘: 서울의 실제 해 뜨는/지는 시간에 맞춰 색이 바뀜 ----------
+// ---------- 하늘 기준 위치: 내 위치(허용하면) / 서울(거절·실패하면) ----------
+// 위치는 이 기기에만 저장하고, 날씨 조회에는 소수점 한 자리(약 10km)로 뭉갠 좌표만 써요
+const SEOUL = { mode: "seoul", lat: 37.5665, lng: 126.978 };
+const LOC_KEY = "awake-loc";
+let place = { ...SEOUL };
+
+function loadPlace() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LOC_KEY));
+    if (v && v.mode === "geo" && isFinite(v.lat) && isFinite(v.lng)) place = v;
+    return v ? v.mode : null;          // null = 아직 한 번도 안 물어봄
+  } catch (e) { return null; }
+}
+
+function savePlace() {
+  try { localStorage.setItem(LOC_KEY, JSON.stringify(place)); } catch (e) {}
+}
+
+// 그 기준 위치의 시간대 (분). 서울 기준이면 한국 시각, 내 위치면 이 기기 시각
+function tzOffset() {
+  return place.mode === "geo" ? -new Date().getTimezoneOffset() : 540;
+}
+
+function askLocation(byUser) {
+  if (!("geolocation" in navigator)) {
+    if (byUser) showToast("이 브라우저는 위치를 지원하지 않아요");
+    useSeoul();
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      place = {
+        mode: "geo",
+        lat: Math.round(pos.coords.latitude * 10) / 10,
+        lng: Math.round(pos.coords.longitude * 10) / 10,
+      };
+      savePlace();
+      loadWeather();
+      updateSkyWhere();
+      if (byUser) showToast("내 위치의 하늘로 바꿨어요");
+    },
+    () => {
+      if (byUser) showToast("위치 권한이 꺼져 있어요. 브라우저 설정에서 허용해 주세요");
+      useSeoul();
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 6 * 3600 * 1000 }
+  );
+}
+
+function useSeoul() {
+  place = { ...SEOUL };
+  savePlace();
+  loadWeather();
+  updateSkyWhere();
+}
+
+function updateSkyWhere() {
+  const geo = place.mode === "geo";
+  $("skyWhere").textContent = geo ? "하늘·날씨: 내 위치 기준" : "하늘·날씨: 서울 기준";
+  $("skyToggle").textContent = geo ? "서울로 보기" : "내 위치로 보기";
+}
+
+$("skyToggle").addEventListener("click", () => {
+  if (place.mode === "geo") {
+    useSeoul();
+    showToast("서울 하늘로 바꿨어요");
+  } else {
+    askLocation(true);
+  }
+});
+
+// ---------- 하늘: 기준 위치의 실제 해 뜨는/지는 시간에 맞춰 색이 바뀜 ----------
 // 테스트·영상 촬영용 주소 옵션:  ?sky=18:30 (그 시각으로 고정)  ·  ?sky=fast (하루를 60초에 빨리 감기)
 const SKY_PARAM = new URLSearchParams(location.search).get("sky");
 let amb = 0;                   // 주변 밝기 0(밤) ~ 1(한낮) — 건물·창문 색에 사용
 
-// 서울 기준 해 뜨는/지는 시각 (KST 자정부터 몇 분째인지). NOAA 근사식
+// 기준 위치의 해 뜨는/지는 시각 (그곳 시각으로 자정부터 몇 분째인지). NOAA 근사식
 function sunTimes(doy) {
-  const lat = 37.5665 * Math.PI / 180, lng = 126.978;
+  const lat = place.lat * Math.PI / 180, lng = place.lng;
   const g = (2 * Math.PI / 365) * (doy - 1);
   const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
     - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
   const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g)
     + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
-  const ha = Math.acos(Math.cos(90.833 * Math.PI / 180) / (Math.cos(lat) * Math.cos(decl))
-    - Math.tan(lat) * Math.tan(decl)) * 180 / Math.PI;
-  return { rise: 720 - 4 * (lng + ha) - eq + 540, set: 720 - 4 * (lng - ha) - eq + 540 };
+  // 백야·극야 지역에서도 계산이 깨지지 않게 -1~1로 자르기
+  const x = Math.cos(90.833 * Math.PI / 180) / (Math.cos(lat) * Math.cos(decl)) - Math.tan(lat) * Math.tan(decl);
+  const ha = Math.acos(Math.max(-1, Math.min(1, x))) * 180 / Math.PI;
+  const tz = tzOffset();
+  return { rise: 720 - 4 * (lng + ha) - eq + tz, set: 720 - 4 * (lng - ha) - eq + tz };
 }
 
-// 지금 서울 시각 (자정부터 몇 분째, 소수점 포함) + 올해 몇 번째 날
-function seoulNow() {
-  const k = new Date(Date.now() + 9 * 3600 * 1000); // UTC → KST
+// 기준 위치의 지금 시각 (자정부터 몇 분째, 소수점 포함) + 올해 몇 번째 날
+function skyClock() {
+  const k = new Date(Date.now() + tzOffset() * 60000);
   const doy = Math.floor((Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()) - Date.UTC(k.getUTCFullYear(), 0, 1)) / 86400000) + 1;
   let min = k.getUTCHours() * 60 + k.getUTCMinutes() + k.getUTCSeconds() / 60;
   if (SKY_PARAM === "fast") min = ((performance.now() / 1000) * 24) % 1440;     // 60초 = 하루
@@ -447,7 +520,7 @@ function skyStops(rise, set) {
 }
 
 function skyNow() {
-  const { min, doy } = seoulNow();
+  const { min, doy } = skyClock();
   const { rise, set } = sunTimes(doy);
   const st = skyStops(rise, set);
   let i = 0;
@@ -739,20 +812,21 @@ function drawWindow(n) {
   // 오래 켜둔 창문 꾸미기 (총 켜둔 시간)
   const hrs = (st.h || 0) / 3600;
   const dim = st.kind === "on" ? 0 : 0.5;
-  if (hrs >= 20) {
+  const at = (name) => GROWTH.find((g) => g.name === name).h;   // 위 GROWTH 숫자만 바꾸면 그림도 따라감
+  if (hrs >= at("커튼")) {
     tx.fillStyle = mix(color, "#3b1f3a", 0.55 + dim * 0.3);
     tx.fillRect(x, y, 2, WIN_H);
     tx.fillRect(x + WIN_W - 2, y, 2, WIN_H);
     tx.fillRect(x, y, WIN_W, 1);
   }
-  if (hrs >= 1 && hrs < 5) {
+  if (hrs >= at("새싹") && hrs < at("화분")) {
     // 🌱 새싹
     tx.fillStyle = mix("#5fbf5a", "#1c2131", dim);
     tx.fillRect(x + 6, y + WIN_H - 3, 1, 3);
     tx.fillRect(x + 5, y + WIN_H - 4, 1, 1);
     tx.fillRect(x + 7, y + WIN_H - 5, 1, 2);
   }
-  if (hrs >= 5) {
+  if (hrs >= at("화분")) {
     tx.fillStyle = mix("#5fbf5a", "#1c2131", dim);
     tx.fillRect(x + 6, y + WIN_H - 6, 1, 2);
     tx.fillRect(x + 7, y + WIN_H - 7, 2, 2);
@@ -760,13 +834,13 @@ function drawWindow(n) {
     tx.fillStyle = mix("#b0643a", "#1c2131", dim);
     tx.fillRect(x + 5, y + WIN_H - 3, 4, 3);
   }
-  if (hrs >= 50) {
+  if (hrs >= at("고양이")) {
     tx.fillStyle = "#14161f";
     tx.fillRect(x + 1, y + WIN_H - 4, 4, 4);
     tx.fillRect(x + 1, y + WIN_H - 6, 1, 2);
     tx.fillRect(x + 4, y + WIN_H - 6, 1, 2);
   }
-  if (hrs >= 100) {
+  if (hrs >= at("꼬마전구")) {
     // ✨ 꼬마전구 (반짝반짝)
     const bulbs = ["#ff6b6b", "#ffd93d", "#6bcBff", "#9BE38A"];
     for (let k = 0; k < 5; k++) {
@@ -984,11 +1058,11 @@ function tick() {
 // 하늘 위 정보판: 시계·날짜 / 해 뜨고 지기까지 / 오늘 켜둔 시간
 // (서울 시각 — 하늘 색과 같은 기준이라 ?sky= 옵션도 따라감)
 function updateHud(extra) {
-  const { min, doy } = seoulNow();
+  const { min, doy } = skyClock();
   const m = Math.floor(min);
   $("hudClock").textContent = `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
-  const k = new Date(Date.now() + 9 * 3600 * 1000);
+  const k = new Date(Date.now() + tzOffset() * 60000);
   const days = ["일", "월", "화", "수", "목", "금", "토"];
   $("hudDate").textContent = `${k.getUTCMonth() + 1}월 ${k.getUTCDate()}일 (${days[k.getUTCDay()]})`;
 
@@ -1469,8 +1543,13 @@ function showToast(message) {
   renderOptions();
   updateCounts();
   requestAnimationFrame(loop);
+  // 하늘 기준 위치: 처음이면 물어보고, 전에 허용했으면 조용히 새로고침, 거절했으면 서울
+  const asked = loadPlace();
+  updateSkyWhere();
   loadWeather();
   setInterval(loadWeather, WEATHER_MS);
+  if (asked === null) setTimeout(() => askLocation(false), 1200);
+  else if (asked === "geo") askLocation(false);
   tick();
   setInterval(tick, 1000);
   if (!db) return;

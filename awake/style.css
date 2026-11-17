@@ -284,6 +284,18 @@ body.is-mood .hud-line {
   word-break: keep-all;
 }
 
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
 .credit {
   color: var(--muted);
 }

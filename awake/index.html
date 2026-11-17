@@ -18,10 +18,10 @@
 
   <!-- 글꼴: Pretendard (윈도우에서도 또렷하게) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
   <!-- DB (Supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=7" defer></script>
+  <script src="script.js?v=9" defer></script>
 </head>
 <body>
   <main class="app">
@@ -99,6 +99,7 @@
 
       <p id="growth" class="growth"></p>
       <p class="move-hint">빈 창문을 누르면 이사할 수 있어요 (하루 1번)</p>
+      <p class="move-hint"><span id="skyWhere">하늘·날씨: 서울 기준</span> · <button id="skyToggle" class="link-btn" type="button">내 위치로 보기</button></p>
     </section>
 
     <div class="actions">
@@ -108,7 +109,7 @@
 
     <footer class="footer">
       <p>화면이 켜져 있는 동안만 시간이 쌓여요 · 하루는 새벽 6시에 바뀌어요</p>
-      <p>하늘과 날씨는 서울 기준 · 날씨 정보 <a class="credit" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></p>
+      <p>위치는 이 기기에만 저장하고 날씨 조회에만 대략(약 10km) 써요 · 날씨 정보 <a class="credit" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></p>
       <p>의뢰: 공작소장 · 🛠️ 아이디어 공작소</p>
       <p><a class="home-link" href="https://ge323.github.io/gongjakso/">다른 공작품 보러가기 →</a></p>
     </footer>
