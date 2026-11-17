@@ -18,11 +18,11 @@
 
   <!-- 글꼴: Pretendard (윈도우에서도 또렷하게) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
   <!-- DB (Supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="sound.js?v=2" defer></script>
-  <script src="script.js?v=18" defer></script>
+  <script src="script.js?v=20" defer></script>
 </head>
 <body>
   <main class="app">
@@ -81,15 +81,13 @@
         <p id="focusLeft" class="focus-left"></p>
       </div>
       <div id="focusPick" class="focus-pick">
-        <button class="chip" type="button" data-min="30">30분</button>
-        <button class="chip" type="button" data-min="60">1시간</button>
-        <button class="chip" type="button" data-min="120">2시간</button>
+        <button class="focus-go" type="button" data-min="30">30분 집중하고 별 띄우기</button>
       </div>
       <div id="focusRun" class="focus-run" hidden>
         <div class="goal-bar"><div id="focusFill" class="goal-fill"></div></div>
         <button id="focusStop" class="link-btn focus-stop" type="button">그만두기</button>
       </div>
-      <p id="focusInfo" class="focus-info">끝까지 켜 두면 내 창문에 별이 생겨요 · 3분 넘게 나가면 실패</p>
+      <p id="focusInfo" class="focus-info"></p>
     </section>
 
     <!-- 단지 공동 목표 -->

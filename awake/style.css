@@ -598,10 +598,10 @@ body.is-mood .now-count {
 .focus {
   background: var(--card);
   border-radius: 16px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .focus.is-running {
@@ -616,26 +616,29 @@ body.is-mood .now-count {
 }
 
 .focus-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .focus-left {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 
-.focus-pick {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.focus-pick .chip {
-  text-align: center;
-  font-weight: 700;
+.focus-go {
+  width: 100%;
+  padding: 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(252, 211, 77, 0.45);
+  background: rgba(252, 211, 77, 0.1);
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .focus-run {
