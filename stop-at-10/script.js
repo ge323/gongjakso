@@ -277,11 +277,8 @@ async function loadRanking() {
 }
 
 async function loadHallOfFame() {
-  const { data, error } = await db
-    .from("hall_of_fame")
-    .select("nickname, elapsed, achieved_at")
-    .eq("title", "first_perfect_10")
-    .maybeSingle();
+  // 확정된 주인이 있으면 그 사람, 없으면 가장 먼저 10.000을 낸 사람을 "확인 중"으로
+  const { data, error } = await db.rpc("get_hall_of_fame").maybeSingle();
 
   if (error || !data) {
     hofEl.hidden = true;
@@ -295,7 +292,7 @@ async function loadHallOfFame() {
   hofEl.innerHTML = `
     <span class="hof-crown">👑</span>
     <div class="hof-info">
-      <p class="hof-title">최초 완벽한 10초 달성</p>
+      <p class="hof-title">최초 완벽한 10초 달성${data.confirmed ? "" : " · 확인 중"}</p>
       <p class="hof-name"></p>
     </div>
     <div class="hof-meta"><b></b><span></span></div>`;
@@ -395,14 +392,6 @@ async function submitScore(e) {
   lastResult.submitted = true;
   saveNickname(nickname);
 
-  // 정확히 10.000초 → 확인 후 공개
-  if (data.result === "review") {
-    rankForm.hidden = true;
-    myRankEl.hidden = false;
-    myRankEl.textContent = `👑 10.000초! 확인 후 명예의 전당과 랭킹에 올라가요`;
-    return;
-  }
-
   myLastEntry = { id: data.rank_id };
 
   // 내 순위 = 내 최고 기록보다 오차가 작은 기록 수 + 1
@@ -421,8 +410,9 @@ async function submitScore(e) {
 
   rankForm.hidden = true;
   myRankEl.hidden = false;
+  // 10.000초 + 명예의 전당이 비어 있으면 → 확인 후 등재 안내
   myRankEl.textContent = data.is_first_perfect
-    ? `👑 최초 완벽한 10초! ${nickname}님이 명예의 전당에 올랐어요`
+    ? `👑 완벽한 10초! 명예의 전당은 확인 후 올라가요`
     : messages[data.result] || "랭킹에 반영되었어요!";
 
   await loadRanking();
