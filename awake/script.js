@@ -103,6 +103,8 @@ let awayTimer = null;
 let leftAt = 0;
 let myDays = new Map();        // 불빛 달력: 'YYYY-MM-DD' → { s, st }
 let hourWaveAt = -999;         // 정각 파도가 시작된 프레임
+let nightStars = 0;            // 오늘 밤 모두가 집중 세션으로 띄운 별 수
+const starBorn = new Map();    // 별 번호 → 막 떠오른 프레임 (반짝 효과)
 let lastWaveHour = null;
 const AWAY_GRACE_MS = 3 * 60 * 1000;
 let wakeLock = null;
@@ -577,6 +579,8 @@ function drawSky(W, sky) {
     }
   }
 
+  drawSessionStars(W);
+
   // 해·달은 구름이 많을수록 가려짐
   tx.globalAlpha = 1 - (wx.cloud / 100) * 0.85;
 
@@ -639,6 +643,48 @@ function pixelCrescent(cx, cy, r, ox, oy, r2) {
     }
     tx.fillRect(a, cy + y, b - a, 2);
   }
+}
+
+// ⭐ 모두의 밤하늘: 오늘 누군가 30분 집중할 때마다 별이 하나씩
+// 낮에는 안 보이고, 해가 지면서 하늘이 어두워지는 만큼 하나둘 떠오름 (새벽까지)
+function drawSessionStars(W) {
+  const n = Math.min(nightStars, 300);
+  const night = nightLevel();
+  if (!n || night <= 0) return;
+  const cloud = 1 - (wx.cloud / 100) * 0.7;
+  for (let i = 0; i < n; i++) {
+    const th = rand(i * 7 + 2002) * 0.6;              // 별마다 떠오르는 때가 달라요
+    const vis = Math.max(0, Math.min(1, (night - th) / 0.25)) * cloud;
+    if (vis <= 0) continue;
+    const x = Math.round(14 + rand(i * 7 + 2000) * (W - 28));
+    const y = Math.round(10 + rand(i * 7 + 2001) * 130);
+    // 일반 별보다 크고 노란 빛 (눈에 띄게)
+    const tw = 0.75 + Math.sin(frame / 40 + i * 1.7) * 0.25;
+    tx.fillStyle = `rgba(255, 214, 110, ${0.22 * vis * tw})`;
+    tx.fillRect(x - 2, y - 2, 5, 5);
+    tx.fillStyle = `rgba(255, 220, 120, ${vis * tw})`;
+    tx.fillRect(x - 2, y, 5, 1);
+    tx.fillRect(x, y - 2, 1, 5);
+    tx.fillStyle = `rgba(255, 250, 225, ${vis})`;
+    tx.fillRect(x - 1, y, 3, 1);
+    tx.fillRect(x, y - 1, 1, 3);
+    // 막 떠오른 별: 퍼지는 빛
+    const born = starBorn.get(i);
+    if (born !== undefined) {
+      const t = (frame - born) / 90;
+      if (t > 1) { starBorn.delete(i); continue; }
+      tx.strokeStyle = `rgba(255, 236, 170, ${1 - t})`;
+      tx.lineWidth = 1;
+      const r = 2 + t * 14;
+      tx.strokeRect(x - r, y - r, r * 2 + 1, r * 2 + 1);
+    }
+  }
+}
+
+function addNightStar() {
+  nightStars++;
+  if (nightLevel() > 0) starBorn.set(nightStars - 1, frame);
+  updateFocus();
 }
 
 function pixelCircle(cx, cy, r) {
@@ -1177,13 +1223,6 @@ function drawWindow(n) {
     tx.fillRect(x, y, WIN_W, WIN_H);
   }
 
-  // ⭐ 집중 세션을 끝까지 해낸 창문: 오른쪽 위에 작은 별 (많을수록 색이 진해짐)
-  if (st.st > 0) {
-    const sc = st.st >= 30 ? "#ff9f43" : st.st >= 10 ? "#fcd34d" : "#fff7d6";
-    tx.fillStyle = st.kind === "on" ? sc : mix(sc, offC, 0.5);
-    tx.fillRect(x + WIN_W - 1, y - 4, 1, 3);
-    tx.fillRect(x + WIN_W - 2, y - 3, 3, 1);
-  }
   // 🎯 지금 집중 세션 중인 창문: 아래에 노란 밑줄
   if (st.kind === "on" && st.f) {
     tx.fillStyle = "#fcd34d";
@@ -1655,7 +1694,7 @@ function openPeek(n) {
     peekState.textContent = STATUS_TEXT[look.s];
   } else if (st.kind === "on") {
     peekState.textContent = `${STATUS_TEXT[st.s] || STATUS_TEXT[0]} · ${st.a ? "잠깐 자리 비움" : st.f ? "집중하는 중" : "지금 깨어 있어요"}`
-      + (st.st ? ` · 별 ${st.st}개` : "");
+      ;
     waveBtn.hidden = false;
     waveBtn.disabled = false;
   } else if (st.kind === "ember") {
@@ -1866,6 +1905,7 @@ async function loadWindows() {
   dbTotal = Number(data.total) || 0;
   taken = new Set((data.taken || []).map(Number));
   townSec = Number(data.town_sec) || townSec;
+  nightStars = Math.max(Number(data.night_stars) || 0, starBorn.size ? nightStars : 0);
   recent = new Map(data.windows.map((w) => [Number(w.n), { c: w.c, s: w.s, h: Number(w.h) || 0, t: w.t, st: Number(w.st) || 0 }]));
   if (realtimeFailed) {
     // 실시간 연결이 안 되면: 최근 6분 안에 기록이 있는 창문을 깨어 있는 걸로 표시
@@ -1923,6 +1963,14 @@ function joinRoom() {
     })
     .on("broadcast", { event: "wave" }, ({ payload }) => onWave(payload || {}))
     .on("broadcast", { event: "move" }, ({ payload }) => onMove(payload || {}))
+    .on("broadcast", { event: "star" }, ({ payload }) => {
+      const from = Number((payload || {}).from);
+      if (!Number.isInteger(from) || from === myNo) return;
+      addNightStar();
+      showToast(nightLevel() > 0
+        ? `${addr(from)}에서 30분 집중해서 하늘에 별이 떴어요`
+        : `${addr(from)}에서 30분 집중해서 오늘 밤 별이 하나 늘었어요`);
+    })
     .subscribe(async (status, err) => {
       if (ch !== channel) return;
       console.log("[awake] 실시간 연결:", status, err || "");
@@ -2104,8 +2152,7 @@ function updateFocus() {
   $("focusRun").hidden = !running;
   if (running) {
     const left = sessionLeft();
-    const label = sessionGoal >= 3600 ? `${sessionGoal / 3600}시간` : `${sessionGoal / 60}분`;
-    $("focusTitle").textContent = `${label} 집중 중`;
+    $("focusTitle").textContent = "집중하는 중";
     $("focusLeft").textContent = hms(left);
     $("focusFill").style.width = `${Math.min(100, ((sessionGoal - left) / sessionGoal) * 100)}%`;
     $("focusInfo").textContent = "다른 앱은 3분까지 괜찮아요 · 그 이상 나가면 실패";
@@ -2115,9 +2162,11 @@ function updateFocus() {
       lightWindow();
     }
   } else {
-    $("focusTitle").textContent = "집중 세션";
-    $("focusLeft").textContent = myStars ? `별 ${myStars}개` : "";
-    $("focusInfo").textContent = "끝까지 켜 두면 내 창문에 별이 생겨요 · 3분 넘게 나가면 실패";
+    $("focusTitle").textContent = "모두의 밤하늘";
+    $("focusLeft").textContent = nightLevel() > 0 ? `오늘 뜬 별 ${nightStars}개` : `오늘 밤 뜰 별 ${nightStars}개`;
+    $("focusInfo").textContent = myStars
+      ? `30분 동안 켜 두면 밤하늘에 별이 하나 늘어요 · 내가 띄운 별 ${myStars}개`
+      : "30분 동안 켜 두면 밤하늘에 별이 하나 늘어요 · 3분 넘게 나가면 실패";
   }
 }
 
@@ -2137,7 +2186,7 @@ document.querySelectorAll("#focusPick [data-min]").forEach((b) => {
     syncedAt = performance.now();
     track();
     updateFocus();
-    showToast(`${b.textContent} 집중 시작! 화면을 켜 두면 시간이 쌓여요`);
+    showToast(nightLevel() > 0 ? "30분 집중 시작! 끝나면 하늘에 별이 떠요" : "30분 집중 시작! 끝나면 오늘 밤 하늘에 별이 하나 늘어요");
   });
 });
 
@@ -2163,8 +2212,11 @@ $("focusStop").addEventListener("click", async () => {
 });
 
 function onSessionDone(goal) {
-  const label = goal >= 3600 ? `${goal / 3600}시간` : `${(goal || 0) / 60}분`;
-  showToast(`⭐ ${label} 집중 성공! 내 창문에 별이 생겼어요`);
+  addNightStar();
+  if (channel && connected) channel.send({ type: "broadcast", event: "star", payload: { from: myNo } });
+  showToast(nightLevel() > 0
+    ? "⭐ 집중 성공! 모두의 밤하늘에 별을 하나 띄웠어요"
+    : "⭐ 집중 성공! 해가 지면 하늘에 별이 떠요");
   pops.set(myNo, frame);
   lightAt = frame;
   if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
@@ -2332,7 +2384,7 @@ async function makeCard() {
   y += 76;
   const facts = [
     nb ? `함께 깨어 있던 이웃 ${nb}명` : "오늘은 조용히 혼자 깨어 있었어요",
-    starsToday ? `집중 세션 성공 ${starsToday}번` : null,
+    starsToday ? `하늘에 띄운 별 ${starsToday}개` : null,
     renderDays.streak ? `연속 ${renderDays.streak}일째` : null,
   ].filter(Boolean);
   g.fillStyle = "#e3e7ef";
