@@ -59,7 +59,7 @@ const TOWN_GOALS = [
 // ---------- 요소 ----------
 const $ = (id) => document.getElementById(id);
 const town = $("town");
-const tx = town.getContext("2d");
+let tx = town.getContext("2d");          // 그리기 대상 (창문 확대 그릴 때 잠깐 바뀜)
 const scroller = $("scroller");
 const nowCountEl = $("nowCount");
 const dayCountEl = $("dayCount");
@@ -896,12 +896,7 @@ function drawWindow(n) {
     tx.fillStyle = mix("#b0643a", "#1c2131", dim);
     tx.fillRect(x + 5, y + WIN_H - 3, 4, 3);
   }
-  if (hrs >= at("고양이")) {
-    tx.fillStyle = "#14161f";
-    tx.fillRect(x + 1, y + WIN_H - 4, 4, 4);
-    tx.fillRect(x + 1, y + WIN_H - 6, 1, 2);
-    tx.fillRect(x + 4, y + WIN_H - 6, 1, 2);
-  }
+  if (hrs >= at("고양이")) drawCat(x, y, n, dim, offC);
   if (hrs >= at("꼬마전구")) {
     // ✨ 꼬마전구 (반짝반짝)
     const bulbs = ["#ff6b6b", "#ffd93d", "#6bcBff", "#9BE38A"];
@@ -912,12 +907,63 @@ function drawWindow(n) {
     }
   }
 
-  if (mine && st.kind === "on") {
+  if (mine && st.kind === "on" && !closeUpMode) {
     tx.strokeStyle = "rgba(255,255,255,0.9)";
     tx.lineWidth = 1;
     tx.strokeRect(x - 2.5, y - 2.5, WIN_W + 5, WIN_H + 5);
   }
   hourWaveGlow(x, y);
+}
+
+// 🐈 창가의 고양이: 창문마다 종류가 정해져 있어서(번호로 결정) 모두에게 같은 고양이가 보여요
+const CATS = [
+  { name: "까망이", body: "#1b1c22", eye: "#f5d142" },
+  { name: "치즈", body: "#f0a04b", stripe: "#c06f2a", eye: "#3b2a1a" },
+  { name: "회색이", body: "#8a8f9c", stripe: "#6b707c", eye: "#9be38a" },
+  { name: "흰둥이", body: "#f2f0ea", eye: "#4aa3ff" },
+  { name: "턱시도", body: "#1b1c22", chest: "#f2f0ea", eye: "#9be38a" },
+  { name: "삼색이", body: "#f2f0ea", patchA: "#f0a04b", patchB: "#1b1c22", eye: "#3b2a1a" },
+  { name: "샴", body: "#e8d8be", mask: "#5a4031", eye: "#4aa3ff" },
+];
+
+function catOf(n) {
+  return CATS[Math.floor(rand(n * 7 + 3) * CATS.length)];
+}
+
+function drawCat(x, y, n, dim, offC) {
+  const cat = catOf(n);
+  const c = (hex) => (dim ? mix(hex, offC, dim) : hex);
+  const px = (dx, dy, w = 1, h = 1) => tx.fillRect(x + dx, y + dy, w, h);
+  // 앉아 있는 모습 (창문 왼쪽 아래, 가로 5칸 × 세로 7칸)
+  tx.fillStyle = c(cat.body);
+  px(0, 5); px(4, 5);                 // 귀
+  px(0, 6, 5, 3);                     // 머리
+  px(0, 9, 4, 3);                     // 몸
+  px(4, 10, 1, 2);                    // 꼬리
+  if (cat.stripe) {                   // 줄무늬 (이마 + 몸)
+    tx.fillStyle = c(cat.stripe);
+    px(2, 6); px(1, 10); px(3, 10);
+  }
+  if (cat.chest) {                    // 턱시도: 하얀 가슴·입가
+    tx.fillStyle = c(cat.chest);
+    px(1, 9, 2, 3); px(2, 8);
+  }
+  if (cat.patchA) {                   // 삼색이: 얼룩
+    tx.fillStyle = c(cat.patchA);
+    px(0, 5); px(0, 6, 2, 1); px(3, 10, 1, 2);
+    tx.fillStyle = c(cat.patchB);
+    px(4, 5); px(3, 6, 2, 1); px(0, 10);
+  }
+  if (cat.mask) {                     // 샴: 진한 얼굴·귀·꼬리
+    tx.fillStyle = c(cat.mask);
+    px(0, 5); px(4, 5); px(1, 7, 3, 2); px(4, 10, 1, 2);
+  }
+  // 눈 (가끔 깜빡) + 분홍 코
+  const blink = (frame + n * 37) % 260 < 7;
+  tx.fillStyle = c(blink ? (cat.mask || cat.body) : cat.eye);
+  px(1, 7); px(3, 7);
+  tx.fillStyle = c("#f29bb0");
+  px(2, 8);
 }
 
 // ✨ 정각 파도: 매 정각, 단지 전체 창문에 왼쪽에서 오른쪽으로 불빛이 지나감
@@ -1067,7 +1113,35 @@ function draw() {
 function loop() {
   frame++;
   draw();
+  drawCloseUps();
   requestAnimationFrame(loop);
+}
+
+// 🔍 창문 가까이 보기: 큰 그림에서 창문 주변을 잘라 확대 (꾸미기가 잘 보이게)
+const myView = $("myView"), myViewCtx = myView.getContext("2d");
+const peekView = $("peekView"), peekViewCtx = peekView.getContext("2d");
+
+let closeUpMode = false;
+
+// 창문 하나만 벽과 함께 크게 다시 그리기 (큰 그림과 같은 함수로 그려서 꾸미기가 똑같이 보임)
+function closeUp(g, cv, n, cw, ch) {
+  const { x, y } = winPos(n);
+  const sx = x + WIN_W / 2 - cw / 2, sy = y + WIN_H / 2 - ch / 2 - 1;
+  const k = cv.width / cw;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = mixHex("#222738", "#6b7591", amb);      // 건물 벽
+  g.fillRect(0, 0, cv.width, cv.height);
+  g.setTransform(k, 0, 0, k, -sx * k, -sy * k);
+  const saved = tx;
+  tx = g;
+  closeUpMode = true;
+  try { drawWindow(n); } finally { tx = saved; closeUpMode = false; }
+}
+
+function drawCloseUps() {
+  if (myNo && !mineEl.hidden && frame % 2 === 0) closeUp(myViewCtx, myView, myNo, 22, 25);
+  if (selectedN && !peekEl.hidden) closeUp(peekViewCtx, peekView, selectedN, 18, 21);
 }
 
 // ---------- 글자 갱신 ----------
