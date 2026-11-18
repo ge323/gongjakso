@@ -624,7 +624,7 @@ window.Flowers = (() => {
   const svg = $('#bq'), body = $('#bq-body'), rib = $('#bq-ribbon'), gd = $('#bq-guide');
   const drawP = $('#bq-draw'), drawH = $('#bq-draw-hl'), hint = $('#hint');
 
-  const st = { flowers: [], wrap: 'cream', ribbon: 'pink', to: '', from: '', letter: '' };
+  const st = { flowers: [], wrap: 'cream', ribbon: 'pink', to: '', from: '', letter: '', pub: false, nick: '' };
   let mode = 'make', mood = 'all', step = 0, tie = 0, fails = 0, sending = false;
   let pts = null, pull = null, opened = false;
 
@@ -812,6 +812,8 @@ window.Flowers = (() => {
       st.to = $('#to').value.trim();
       st.letter = $('#letter').value.trim();
       st.from = $('#from').value.trim();
+      st.pub = $('#pub').checked;
+      st.nick = st.pub ? $('#nick').value.trim() : '';
       if (!st.to || !st.letter || !st.from) return toast('받는 사람, 편지, 보내는 사람을 모두 적어 주세요');
     }
     if (name === 'ribbon') return send();
@@ -1149,10 +1151,13 @@ window.Flowers = (() => {
         p_to: st.to,
         p_from: st.from,
         p_letter: st.letter,
+        p_public: st.pub,
+        p_nickname: st.nick,
       });
       shareUrl = `${pageBase()}?b=${id}`;
       $('#link').value = shareUrl;
       $('#preview').href = shareUrl;
+      $('#shop-go').hidden = !st.pub;
       sending = false;
       go(STEPS.indexOf('done'));
       if (KAKAO_KEY) kakaoReady = prepareKakao(); // 미리 준비해 두면 버튼 누르자마자 열림
@@ -1248,11 +1253,90 @@ window.Flowers = (() => {
     });
   });
 
+
+  /* ================= 모두의 꽃집 (원하는 사람만 꽃다발 그림 자랑) ================= */
+  const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const HEARTS_KEY = 'bouquet-hearts';
+  const myHearts = () => { try { return new Set(JSON.parse(localStorage.getItem(HEARTS_KEY) || '[]')); } catch { return new Set(); } };
+  const saveHeart = g => { try { const h = myHearts(); h.add(g); localStorage.setItem(HEARTS_KEY, JSON.stringify([...h].slice(-500))); } catch { } };
+  let shopBefore = null;
+
+  const copyUrl = b => `./?f=${encodeURIComponent(b.flowers.join(','))}&w=${encodeURIComponent(b.wrap)}&r=${encodeURIComponent(b.ribbon)}`;
+
+  function shopCard(b) {
+    const hearted = b.mine || myHearts().has(b.g);
+    const svgBody = F.compose({ flowers: b.flowers, wrap: b.wrap }) + F.ribbon(b.ribbon, 2);
+    return `<div class="shop-card"><svg viewBox="0 50 400 450" aria-hidden="true">${svgBody}</svg>` +
+      `<div class="meta"><span class="nick">${esc(b.nickname || '익명')}</span>` +
+      `<button type="button" class="love${hearted ? ' on' : ''}" data-g="${esc(b.g)}" aria-label="예뻐요">💗 <b>${b.hearts}</b></button></div>` +
+      `<a class="copy" href="${copyUrl(b)}">따라 만들기</a></div>`;
+  }
+
+  async function loadShop() {
+    $('#shop-more').hidden = true;
+    let list = [];
+    try {
+      list = await rpc('list_public_bouquets', { p_player_id: playerId(), p_before: shopBefore, p_limit: 12 }) || [];
+    } catch {
+      if (!shopBefore) { $('#shop-empty').textContent = '불러오지 못했어요. 잠시 후 새로고침해 주세요'; $('#shop-empty').hidden = false; }
+      return;
+    }
+    list = list.filter(b => Array.isArray(b.flowers) && b.flowers.every(id => F.byId[id]) && F.WRAPS[b.wrap] && F.RIBBONS[b.ribbon]);
+    if (!shopBefore && !list.length) $('#shop-empty').hidden = false;
+    $('#shop-grid').insertAdjacentHTML('beforeend', list.map(shopCard).join(''));
+    if (list.length) shopBefore = list[list.length - 1].created_at;
+    $('#shop-more').hidden = list.length < 12;
+  }
+
+  async function openShop() {
+    mode = 'shop';
+    document.body.classList.add('shopping');
+    $('.stage').hidden = true;
+    $('#shop').hidden = false;
+    rpc('bouquet_stats', {}).then(s => {
+      if (s && s.total) $('#shop-count').textContent = `지금까지 꽃다발 ${s.total.toLocaleString()}개 · 자랑 ${s.public.toLocaleString()}개`;
+    }).catch(() => { });
+    await loadShop();
+  }
+
+  $('#shop-more').addEventListener('click', loadShop);
+  $('#shop-grid').addEventListener('click', async e => {
+    const btn = e.target.closest('.love');
+    if (!btn || btn.classList.contains('on')) return;
+    const g = btn.dataset.g, num = btn.querySelector('b');
+    btn.classList.add('on');
+    num.textContent = Number(num.textContent) + 1;
+    saveHeart(g);
+    pluck();
+    buzz(10);
+    try {
+      const n = await rpc('heart_bouquet', { p_player_id: playerId(), p_gallery_id: g });
+      if (typeof n === 'number') num.textContent = n;
+    } catch { }
+  });
+
+  $('#pub').addEventListener('change', e => { $('#nick').hidden = !e.target.checked; });
+
+  // 따라 만들기: 주소의 꽃 구성으로 시작
+  function applyCopy(q) {
+    const ids = (q.get('f') || '').split(',').filter(id => F.byId[id]);
+    let m = 0, f = 0;
+    for (const id of ids) {
+      if (F.byId[id].filler ? f < MAX_FILL : m < MAX_MAIN) { st.flowers.push(id); F.byId[id].filler ? f++ : m++; }
+    }
+    if (F.WRAPS[q.get('w')]) st.wrap = q.get('w');
+    if (F.RIBBONS[q.get('r')]) st.ribbon = q.get('r');
+  }
+
   /* ================= 시작 ================= */
-  const bid = new URLSearchParams(location.search).get('b');
+  const query = new URLSearchParams(location.search);
+  const bid = query.get('b');
   if (bid) {
     view(bid);
+  } else if (query.has('shop')) {
+    openShop();
   } else {
+    if (query.has('f')) applyCopy(query);
     $('#maker').hidden = false;
     renderMoods();
     renderGrid();
@@ -1260,5 +1344,6 @@ window.Flowers = (() => {
     drawP.setAttribute('stroke', F.RIBBONS[st.ribbon]);
     drawBouquet();
     go(0);
+    updateCards();
   }
 })();
