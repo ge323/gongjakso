@@ -62,7 +62,6 @@ const town = $("town");
 let tx = town.getContext("2d");          // 그리기 대상 (창문 확대 그릴 때 잠깐 바뀜)
 const scroller = $("scroller");
 const nowCountEl = $("nowCount");
-const dayCountEl = $("dayCount");
 const findBtn = $("findBtn");
 const peekEl = $("peek");
 const peekAddr = $("peekAddr");
@@ -1510,7 +1509,6 @@ function drawCloseUps() {
 function updateCounts() {
   if (!db) {
     nowCountEl.textContent = "준비 중이에요 🛠️";
-    dayCountEl.textContent = "";
     return;
   }
   if (connected || realtimeFailed) {
@@ -1518,10 +1516,6 @@ function updateCounts() {
   } else {
     nowCountEl.textContent = myNo ? "내 창문에 불을 켰어요 · 이웃 찾는 중…" : "불 켜는 중…";
   }
-  const visited = new Set([...recent.keys(), ...online.keys()]);
-  dayCountEl.textContent = visited.size
-    ? `최근 24시간 동안 ${visited.size}명이 다녀갔어요`
-    : "";
 }
 
 function hms(sec) {
@@ -2306,6 +2300,7 @@ function sessionLeft() {
 
 function updateFocus() {
   const box = $("focus");
+  $("townbox").hidden = !db || !myNo;      // 오늘의 단지 칸 (별 + 단지 목표)
   if (!db || !myNo) { box.hidden = true; return; }
   box.hidden = false;
   const running = !!sessionGoal;
@@ -2431,13 +2426,16 @@ function dayLevel(sec) {
 function renderDays() {
   const box = $("days");
   if (!db || !myNo) { box.hidden = true; return; }
-  box.hidden = false;
   const today = nightKey();
   const base = new Date(today + "T00:00:00Z");
+  // 처음 온 사람에겐 빈 달력 대신 숨김: 불을 켠 날이 이틀 이상 생기면 보여 줌
+  const litDays = [...myDays.entries()].filter(([d, r]) => d !== today && r.s > 0).length + (myToday > 0 ? 1 : 0);
+  box.hidden = litDays < 2;
+  if (box.hidden) { renderDays.streak = 0; return; }
   const grid = $("daysGrid");
   const cells = [];
   let lit = 0, stars = 0;
-  for (let i = 83; i >= 0; i--) {
+  for (let i = 27; i >= 0; i--) {                 // 최근 4주
     const d = new Date(base.getTime() - i * 86400000).toISOString().slice(0, 10);
     const rec = myDays.get(d) || { s: 0, st: 0 };
     const sec = d === today ? Math.max(rec.s, myToday + liveExtra()) : rec.s;
@@ -2457,7 +2455,7 @@ function renderDays() {
     else if (i === 0) continue;
     else break;
   }
-  $("daysSum").innerHTML = `연속 <b>${streak}일</b> · 12주 중 ${lit}일`;
+  $("daysSum").innerHTML = `연속 <b>${streak}일</b> · 4주 중 ${lit}일`;
   renderDays.streak = streak;
 }
 

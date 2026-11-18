@@ -18,11 +18,11 @@
 
   <!-- 글꼴: Pretendard (윈도우에서도 또렷하게) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=17">
   <!-- DB (Supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="sound.js?v=2" defer></script>
-  <script src="script.js?v=22" defer></script>
+  <script src="script.js?v=23" defer></script>
   <script src="../visit-counter.js?v=4" defer></script>
 </head>
 <body>
@@ -59,9 +59,6 @@
         <span id="nowCount" class="now-count">불 켜는 중…</span>
         <button id="findBtn" class="find-btn" type="button" hidden>📍 내 창문</button>
       </div>
-      <div class="sub-bar">
-        <span id="dayCount" class="day-count"></span>
-      </div>
 
       <!-- 반응·응원: 들어오자마자 누를 수 있게 -->
       <div id="react" class="react" hidden>
@@ -89,30 +86,34 @@
       </div>
     </section>
 
-    <!-- 집중 세션 -->
-    <section id="focus" class="focus" hidden>
-      <div class="focus-top">
-        <p id="focusTitle" class="focus-title">집중 세션</p>
-        <p id="focusLeft" class="focus-left"></p>
+    <!-- 오늘의 단지: 모두가 함께 만드는 것 (밤하늘 별 + 단지 목표) -->
+    <section id="townbox" class="townbox" hidden>
+      <!-- 집중 세션 → 별 -->
+      <div id="focus" class="focus" hidden>
+        <div class="focus-top">
+          <p id="focusTitle" class="focus-title">집중 세션</p>
+          <p id="focusLeft" class="focus-left"></p>
+        </div>
+        <div id="focusPick" class="focus-pick">
+          <button class="focus-go" type="button" data-min="30">30분 집중하고 별 띄우기</button>
+        </div>
+        <div id="focusRun" class="focus-run" hidden>
+          <div class="goal-bar"><div id="focusFill" class="goal-fill"></div></div>
+          <button id="focusStop" class="link-btn focus-stop" type="button">그만두기</button>
+        </div>
+        <p id="focusInfo" class="focus-info"></p>
       </div>
-      <div id="focusPick" class="focus-pick">
-        <button class="focus-go" type="button" data-min="30">30분 집중하고 별 띄우기</button>
-      </div>
-      <div id="focusRun" class="focus-run" hidden>
-        <div class="goal-bar"><div id="focusFill" class="goal-fill"></div></div>
-        <button id="focusStop" class="link-btn focus-stop" type="button">그만두기</button>
-      </div>
-      <p id="focusInfo" class="focus-info"></p>
-    </section>
 
-    <!-- 단지 공동 목표 -->
-    <section id="goal" class="goal" hidden>
-      <div class="goal-top">
-        <span id="goalTitle" class="goal-title"></span>
-        <span id="goalCount" class="goal-count"></span>
+      <!-- 단지 공동 목표 -->
+      <div class="townbox-line"></div>
+      <div id="goal" class="goal" hidden>
+        <div class="goal-top">
+          <span id="goalTitle" class="goal-title"></span>
+          <span id="goalCount" class="goal-count"></span>
+        </div>
+        <div class="goal-bar"><div id="goalFill" class="goal-fill"></div></div>
+        <p id="goalNext" class="goal-next"></p>
       </div>
-      <div class="goal-bar"><div id="goalFill" class="goal-fill"></div></div>
-      <p id="goalNext" class="goal-next"></p>
     </section>
 
     <!-- 불빛 달력 (잔디) -->
@@ -121,7 +122,7 @@
         <p class="days-title">불빛 달력</p>
         <p id="daysSum" class="days-sum"></p>
       </div>
-      <div id="daysGrid" class="days-grid" aria-label="최근 12주 동안 불을 켠 날"></div>
+      <div id="daysGrid" class="days-grid" aria-label="최근 4주 동안 불을 켠 날"></div>
       <div class="days-legend">
         <span>적게</span><i class="lv0"></i><i class="lv1"></i><i class="lv2"></i><i class="lv3"></i><i class="lv4"></i><span>많이</span>
       </div>
@@ -129,37 +130,40 @@
 
     <!-- 내 창문 -->
     <section id="mine" class="mine" hidden>
-      <div class="mine-top">
-        <p class="mine-title">🪟 내 창문 <b id="myAddr"></b></p>
-        <p id="myWaves" class="mine-visits"></p>
+      <div class="mine-head">
+        <canvas id="myView" class="win-view" width="264" height="300" aria-label="내 창문 가까이 보기"></canvas>
+        <div class="mine-info">
+          <p class="mine-title">내 창문 <b id="myAddr"></b></p>
+          <p id="growth" class="growth"></p>
+          <p id="myWaves" class="mine-visits"></p>
+        </div>
       </div>
 
-      <canvas id="myView" class="win-view" width="264" height="300" aria-label="내 창문 가까이 보기"></canvas>
-
-      <div class="field">
-        <p class="label">조명 색</p>
-        <div id="colors" class="swatches"></div>
-      </div>
-
-      <div class="field">
-        <p class="label">지금 뭐 해요?</p>
-        <div id="statuses" class="chips"></div>
-      </div>
-
-      <p id="growth" class="growth"></p>
-      <p class="move-hint">빈 창문을 누르면 이사할 수 있어요 (하루 1번)</p>
-      <p class="move-hint"><span id="skyWhere">하늘·날씨: 서울 기준</span> · <button id="skyToggle" class="link-btn" type="button">내 위치로 보기</button></p>
+      <details class="settings">
+        <summary>꾸미기 설정</summary>
+        <div class="settings-body">
+          <div class="field">
+            <p class="label">조명 색</p>
+            <div id="colors" class="swatches"></div>
+          </div>
+          <div class="field">
+            <p class="label">지금 뭐 해요?</p>
+            <div id="statuses" class="chips"></div>
+          </div>
+          <p class="move-hint">빈 창문을 누르면 이사할 수 있어요 (하루 1번)</p>
+          <p class="move-hint"><span id="skyWhere">하늘·날씨: 서울 기준</span> · <button id="skyToggle" class="link-btn" type="button">내 위치로 보기</button></p>
+        </div>
+      </details>
     </section>
 
-    <div class="actions">
-      <button id="moodBtn" class="btn btn-main" type="button">화면 켜 두기</button>
-      <p class="move-hint">화면이 꺼지지 않게 해서 시간이 계속 쌓여요</p>
+    <div class="actions actions-row">
+      <button id="moodBtn" class="btn btn-sub" type="button">화면 켜 두기</button>
       <button id="shareBtn" class="btn btn-sub" type="button">오늘 기록 카드</button>
     </div>
 
     <footer class="footer">
-      <p>화면이 켜져 있는 동안만 시간이 쌓여요 · 잠깐 나가도 3분까지는 괜찮아요 · 하루는 새벽 6시에 바뀌어요</p>
-      <p>위치는 이 기기에만 저장하고 날씨 조회에만 대략(약 10km) 써요 · 날씨 정보 <a class="credit" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></p>
+      <p>화면이 켜져 있는 동안만 시간이 쌓여요 · "화면 켜 두기"를 누르면 꺼지지 않아요 · 하루는 새벽 6시 기준</p>
+      <p>위치는 이 기기에만 저장 · 날씨 정보 <a class="credit" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></p>
       <p>의뢰: 공작소장 · 🛠️ 아이디어 공작소</p>
       <p id="visit-count" hidden style="font-size: 0.8rem; opacity: 0.6"></p>
       <p><a class="home-link" href="https://ge323.github.io/gongjakso/">다른 공작품 보러가기 →</a></p>

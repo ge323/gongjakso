@@ -586,6 +586,7 @@ body.is-mood {
 }
 
 body.is-mood .header,
+body.is-mood .townbox,
 body.is-mood .goal,
 body.is-mood .focus,
 body.is-mood .days,
@@ -665,10 +666,10 @@ body.is-mood .now-count {
 /* 내 창문 가까이 보기 */
 .win-view {
   display: block;
-  width: 100%;
-  max-width: 132px;
+  flex-shrink: 0;
+  width: 84px;
   height: auto;
-  margin: 0 auto;
+  margin: 0;
   border-radius: 12px;
   image-rendering: pixelated;
   background: #000;
@@ -795,9 +796,7 @@ body.is-mood .now-count {
 
 .days-grid {
   display: grid;
-  grid-template-rows: repeat(7, 1fr);
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-template-columns: repeat(14, 1fr);   /* 4주 = 14칸 × 2줄 */
   gap: 4px;
 }
 
@@ -901,6 +900,58 @@ body.is-mood .now-count {
   gap: 16px;
 }
 
+/* 내 창문: 왼쪽 확대 그림 + 오른쪽 정보 */
+.mine-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mine-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mine-info .growth {
+  padding: 0;
+  background: none;
+  line-height: 1.55;
+}
+
+/* 꾸미기 설정 (접어 두기) */
+.settings summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #1d2131;
+  list-style: none;
+}
+
+.settings summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings summary::after {
+  content: " ▾";
+}
+
+.settings[open] summary::after {
+  content: " ▴";
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+}
+
 .mine-top {
   display: flex;
   justify-content: space-between;
@@ -992,6 +1043,37 @@ body.is-mood .now-count {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.actions-row {
+  flex-direction: row;
+}
+
+.actions-row .btn {
+  flex: 1;
+  padding: 13px 8px;
+  font-size: 14px;
+}
+
+/* 오늘의 단지 (별 + 단지 목표를 한 칸에) */
+.townbox {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.townbox .focus,
+.townbox .goal {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+.townbox-line {
+  height: 1px;
+  background: var(--line);
+  margin: 14px 0;
 }
 
 .btn {
