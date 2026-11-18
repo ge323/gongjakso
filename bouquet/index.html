@@ -1,316 +1,116 @@
 <!doctype html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🛠️ 아이디어 공작소</title>
-    <meta
-      name="description"
-      content="상상만 하던 사이트, 대신 만들어드립니다 | 댓글로 의뢰받은 아이디어를 웹 게임·사이트로 만들어요"
-    />
-    <meta property="og:title" content="🛠️ 아이디어 공작소" />
-    <meta
-      property="og:description"
-      content="상상만 하던 사이트, 대신 만들어드립니다"
-    />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://ge323.github.io/gongjakso/" />
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>꽃다발 + 편지 · 아이디어 공작소</title>
+  <meta name="description" content="꽃말로 꽃을 골라 꽃다발을 만들고 편지와 함께 보내요">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="꽃다발이 도착했어요 💐">
+  <meta property="og:description" content="리본을 풀어 꽃과 편지를 확인해 보세요">
+  <meta property="og:image" content="https://ge323.github.io/gongjakso/bouquet/og-image.png?v=2">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=10">
+</head>
+<body>
+  <main>
+    <section class="stage">
+      <p class="to-line" id="to-line"></p>
+      <svg id="bq" viewBox="0 50 400 450" role="img" aria-label="꽃다발">
+        <g id="bq-body"></g>
+        <g id="bq-guide"></g>
+        <g id="bq-ribbon"></g>
+        <path id="bq-draw" fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="bq-draw-hl" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p class="hint" id="hint"></p>
+      <button class="ghost" id="open-btn" hidden>눌러서 열기</button>
+    </section>
 
-      :root {
-        --bg: #0f1115;
-        --card: #1a1d24;
-        --line: #252932;
-        --text: #f2f3f5;
-        --muted: #8b909a;
-        --accent: #4ade80;
-      }
+    <!-- 만들기 -->
+    <section id="maker" hidden>
+      <div data-step="flowers">
+        <div class="chips" id="moods"></div>
+        <div class="grid" id="grid"></div>
+        <h2>곁들임</h2>
+        <div class="grid" id="grid-fill"></div>
+      </div>
 
-      body {
-        min-height: 100dvh;
-        background: var(--bg);
-        color: var(--text);
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Pretendard",
-          "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-        display: flex;
-        justify-content: center;
-      }
+      <div data-step="wrap" hidden>
+        <h2>포장지</h2>
+        <div class="swatches" id="sw-wrap"></div>
+      </div>
 
-      .app {
-        width: 100%;
-        max-width: 480px;
-        padding: 40px 20px 32px;
-        display: flex;
-        flex-direction: column;
-        gap: 28px;
-      }
-
-      /* 헤더 */
-      .header {
-        text-align: center;
-      }
-
-      .badge {
-        display: inline-block;
-        padding: 6px 14px;
-        border-radius: 999px;
-        background: var(--card);
-        color: var(--muted);
-        font-size: 13px;
-        margin-bottom: 16px;
-      }
-
-      .title {
-        font-size: 30px;
-        font-weight: 800;
-        line-height: 1.35;
-        margin-bottom: 10px;
-      }
-
-      .title em {
-        font-style: normal;
-        color: var(--accent);
-      }
-
-      .subtitle {
-        color: var(--muted);
-        font-size: 15px;
-        line-height: 1.6;
-      }
-
-      /* 공작품 목록 */
-      .section-title {
-        font-size: 14px;
-        color: var(--muted);
-        margin-bottom: 12px;
-      }
-
-      .list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .item {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 18px;
-        border-radius: 20px;
-        background: var(--card);
-        border: 1px solid var(--line);
-        color: inherit;
-        text-decoration: none;
-        transition:
-          transform 0.15s,
-          border-color 0.15s;
-      }
-
-      a.item:hover,
-      a.item:focus-visible {
-        transform: translateY(-2px);
-        border-color: var(--accent);
-        outline: none;
-      }
-
-      .icon {
-        flex-shrink: 0;
-        width: 60px;
-        height: 60px;
-        border-radius: 16px;
-        background: #252932;
-        display: grid;
-        place-items: center;
-        font-size: 32px;
-      }
-
-      .info {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .no {
-        font-size: 12px;
-        color: var(--accent);
-        font-weight: 700;
-        margin-bottom: 2px;
-      }
-
-      .name {
-        font-size: 18px;
-        font-weight: 800;
-        margin-bottom: 4px;
-      }
-
-      .desc {
-        font-size: 13px;
-        color: var(--muted);
-        line-height: 1.5;
-      }
-
-      .tags {
-        display: flex;
-        gap: 6px;
-        margin-top: 8px;
-      }
-
-      .tag {
-        font-size: 11px;
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: #252932;
-        color: #c9ccd2;
-      }
-
-      .go {
-        flex-shrink: 0;
-        font-size: 20px;
-        color: var(--muted);
-      }
-
-      /* 준비 중 카드 */
-      .item.is-locked {
-        border-style: dashed;
-        opacity: 0.75;
-      }
-
-      .item.is-locked .icon {
-        filter: blur(3px);
-      }
-
-      /* 의뢰 안내 */
-      .request {
-        text-align: center;
-        padding: 22px;
-        border-radius: 20px;
-        background: rgba(74, 222, 128, 0.08);
-        border: 1px solid rgba(74, 222, 128, 0.25);
-      }
-
-      .request h2 {
-        font-size: 18px;
-        margin-bottom: 6px;
-      }
-
-      .request p {
-        font-size: 14px;
-        color: #c9ccd2;
-        line-height: 1.6;
-      }
-
-      /* 푸터 */
-      .footer {
-        text-align: center;
-        font-size: 12px;
-        color: var(--muted);
-        line-height: 1.8;
-      }
-
-      .footer a {
-        color: var(--muted);
-      }
-    </style>
-  </head>
-  <script src="visit-counter.js?v=4" defer></script>
-  <body>
-    <main class="app">
-      <header class="header">
-        <span class="badge">🛠️ 아이디어 공작소</span>
-        <h1 class="title">
-          상상만 하던 사이트,<br /><em>대신 만들어드립니다</em>
-        </h1>
-        <p class="subtitle">
-          댓글로 의뢰받은 아이디어를<br />웹 게임과 사이트로 만들어요
-        </p>
-      </header>
-
-      <section>
-        <h2 class="section-title">🧰 공작품</h2>
-        <div class="list">
-          <!-- 공작 #3 (최신이 위로) -->
-          <a class="item" href="https://ge323.github.io/gongjakso/bouquet/">
-            <div class="icon">💐</div>
-            <div class="info">
-              <p class="no">공작 #3 · NEW</p>
-              <p class="name">꽃다발 보내기</p>
-              <p class="desc">
-                꽃을 골라 꽃다발을 만들고 <br> 편지와 함께 보내요
-              </p>
-              <div class="tags">
-                <span class="tag">💐 선물</span>
-                <span class="tag">✉️ 편지</span>
-              </div>
-            </div>
-            <span class="go">›</span>
-          </a>
-
-          <!-- 공작 #2 -->
-          <a class="item" href="https://ge323.github.io/gongjakso/pixel-fish/">
-            <div class="icon">🐟</div>
-            <div class="info">
-              <p class="no">공작 #2</p>
-              <p class="name">픽셀 어항</p>
-              <p class="desc">
-                내가 만든 물고기가 모두의 어항에서 계속 헤엄쳐요
-              </p>
-              <div class="tags">
-                <span class="tag">🫧 참여형</span>
-                <span class="tag">🎨 꾸미기</span>
-              </div>
-            </div>
-            <span class="go">›</span>
-          </a>
-
-          <!-- 공작 #1 -->
-          <a class="item" href="https://ge323.github.io/gongjakso/stop-at-10/">
-            <div class="icon">⏱️</div>
-            <div class="info">
-              <p class="no">공작 #1</p>
-              <p class="name">딱 10초</p>
-              <p class="desc">
-                타이머가 사라진 뒤, 감으로 정확히 10초에 멈출 수 있을까?
-              </p>
-              <div class="tags">
-                <span class="tag">🎮 게임</span>
-                <span class="tag">🏆 랭킹</span>
-              </div>
-            </div>
-            <span class="go">›</span>
-          </a>
+      <div data-step="letter" hidden>
+        <input id="to" maxlength="20" placeholder="받는 사람" autocomplete="off">
+        <textarea id="letter" maxlength="1000" rows="8" placeholder="마음을 담아 적어 주세요"></textarea>
+        <div class="row">
+          <input id="from" maxlength="20" placeholder="보내는 사람" autocomplete="off">
+          <small><span id="len">0</span>/1000</small>
         </div>
-      </section>
+      </div>
 
-      <section class="request">
-        <h2>📮 공작 의뢰 받는 중</h2>
-        <p>
-          "이런 사이트 있으면 좋겠다" 싶은 게 있다면<br />영상 댓글로
-          남겨주세요!
-        </p>
-      </section>
+      <div data-step="ribbon" hidden>
+        <h2>리본</h2>
+        <div class="swatches" id="sw-ribbon"></div>
+        <button class="ghost" id="auto" hidden>대신 묶어 줄게요</button>
+      </div>
 
-      <footer class="footer">
-        <p>🛠️ 아이디어 공작소</p>
-        <p
-          id="visit-count"
-          hidden
-          style="font-size: 0.8rem; opacity: 0.6; text-align: center"
-        ></p>
-        <p>
-          <a
-            href="https://github.com/ge323/gongjakso"
-            target="_blank"
-            rel="noopener"
-            >GitHub</a
-          >
-        </p>
-        <p id="visit-count" hidden style="font-size: 0.8rem; opacity: 0.6"></p>
-      </footer>
-    </main>
-  </body>
+      <div data-step="done" hidden>
+        <p class="done">꽃다발이 준비됐어요</p>
+        <input id="link" readonly>
+        <div class="row center">
+          <button class="btn kakao" id="kakao">카카오톡</button>
+          <button class="btn" id="share">공유</button>
+          <button class="btn" id="copy">복사</button>
+        </div>
+        <div class="row center">
+          <a class="ghost" id="preview" target="_blank" rel="noopener">받는 화면 보기</a>
+          <a class="ghost" href="./">새로 만들기</a>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="ghost" id="prev">이전</button>
+        <span id="count"></span>
+        <button class="btn" id="next">다음</button>
+      </nav>
+    </section>
+
+    <!-- 받기 -->
+    <section id="viewer" hidden>
+      <p class="missing" id="missing" hidden></p>
+      <article class="card" id="card" hidden>
+        <p class="c-to" id="c-to"></p>
+        <p class="c-letter" id="c-letter"></p>
+        <p class="c-from" id="c-from"></p>
+        <ul class="c-flowers" id="c-flowers"></ul>
+      </article>
+      <a class="btn wide" id="again" href="./" hidden>나도 꽃다발 보내기</a>
+    </section>
+
+    <footer class="footer">
+      <p>의뢰: 공작소장 · 🛠️ 아이디어 공작소</p>
+      <p id="visit-count" hidden style="font-size: 0.8rem; opacity: 0.6"></p>
+      <p><a class="home-link" href="https://ge323.github.io/gongjakso/">다른 공작품 보러가기 →</a></p>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    // 파일을 못 불러오거나 오류가 나면 화면에 표시 (폰에서 원인 확인용)
+    window.addEventListener('error', function (e) {
+      var h = document.getElementById('hint');
+      if (h) h.textContent = '오류: ' + (e.message || (e.target && (e.target.src || e.target.href)) || '알 수 없음');
+    }, true);
+  </script>
+  <script src="bouquet.js?v=7"></script>
+  <script src="../visit-counter.js" defer></script>
+</body>
 </html>
