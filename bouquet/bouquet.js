@@ -792,12 +792,96 @@ window.Flowers = (() => {
     chime([1047, 1319, 1568, 2093]);
     buzz([20, 40, 20]);
     setTimeout(() => {
+      // 리본이 풀리는 순간 종이폭죽 팡!
+      const p = svg.createSVGPoint();
+      p.x = B_X; p.y = B_Y;
+      const o = p.matrixTransform(svg.getScreenCTM());
+      popSound();
+      buzz(40);
+      confetti(o.x, o.y);
+    }, 300);
+    setTimeout(() => {
       const card = $('#card');
       card.hidden = false;
       $('#again').hidden = false;
       requestAnimationFrame(() => card.classList.add('show'));
       card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 750);
+    }, 1100);
+  }
+
+  /* ----- 종이폭죽 ----- */
+  const B_X = 200, B_Y = 368; // 리본 매듭 자리 (그림 좌표)
+
+  // "팡" 소리: 짧은 잡음을 아주 빠르게 줄임 (음원 파일 없이)
+  function popSound() {
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const len = Math.floor(ac.sampleRate * .18), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+      const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+      src.buffer = buf;
+      f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = .7;
+      g.gain.value = .5;
+      src.connect(f).connect(g).connect(ac.destination);
+      src.start();
+    } catch { }
+  }
+
+  function confetti(ox, oy) {
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const cv = document.createElement('canvas');
+    cv.className = 'confetti';
+    document.body.appendChild(cv);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = innerWidth, H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    // 리본 색 + 꽃다발에 들어간 꽃 색 + 금색
+    const colors = [F.RIBBONS[st.ribbon], '#f6c7cf', '#fbe39a', '#cfe3c2', '#cbdcf5', '#e9dcf5', '#f3b6a8', '#e6c47e'];
+    const N = reduce ? 30 : 140;
+    const parts = [];
+    for (let i = 0; i < N; i++) {
+      const a = (-90 + (Math.random() - .5) * 150) * Math.PI / 180; // 위쪽 부채꼴로
+      const sp = 7 + Math.random() * 9;
+      parts.push({
+        x: ox, y: oy,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2,
+        w: 7 + Math.random() * 6, h: 4 + Math.random() * 5,
+        r: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
+        flip: Math.random() * Math.PI, vf: .1 + Math.random() * .2,
+        shape: Math.random() < .55 ? 'paper' : Math.random() < .6 ? 'petal' : 'dot',
+        c: colors[i % colors.length],
+      });
+    }
+
+    const t0 = performance.now(), LIFE = 2600;
+    (function frame(now) {
+      const t = now - t0;
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalAlpha = t > LIFE - 700 ? Math.max(0, (LIFE - t) / 700) : 1;
+      for (const p of parts) {
+        p.vx *= .985; p.vy = p.vy * .985 + .28; // 공기 저항 + 중력
+        p.x += p.vx + Math.sin(p.flip) * .6; p.y += p.vy;
+        p.r += p.vr; p.flip += p.vf;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.r);
+        ctx.scale(1, Math.cos(p.flip)); // 종이가 팔랑팔랑 뒤집힘
+        ctx.fillStyle = p.c;
+        if (p.shape === 'paper') ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        else {
+          ctx.beginPath();
+          if (p.shape === 'petal') ctx.ellipse(0, 0, p.w * .6, p.h * .45 + 1, 0, 0, Math.PI * 2);
+          else ctx.arc(0, 0, p.h * .5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      if (t < LIFE) requestAnimationFrame(frame);
+      else cv.remove();
+    })(t0);
   }
 
   async function view(id) {
