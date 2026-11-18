@@ -348,6 +348,7 @@ body {
   text-align: center;
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.8;  
 }
 
 /* 토스트 알림 */
@@ -370,4 +371,12 @@ body {
 .toast.is-show {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+.home-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--accent);      /* 초록색 */
+  text-decoration: none;     /* 밑줄 없음 */
+  font-weight: 700;
 }
