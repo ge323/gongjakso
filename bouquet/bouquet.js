@@ -45,8 +45,11 @@ window.Flowers = (() => {
     blush: ['#fff2f1', '#f5d3d5'],
     sage: ['#f3f7ef', '#d3dfcb'],
     lavender: ['#f8f5fc', '#ddd3ec'],
+    sky: ['#e6f2fd', '#b3d2ef'],
+    butter: ['#fffbe8', '#f6e7ae'],
+    black: ['#4b4747', '#262323'],
   };
-  const WRAP_NAMES = { cream: '크림', kraft: '크라프트', blush: '연분홍', sage: '세이지', lavender: '라벤더' };
+  const WRAP_NAMES = { cream: '크림', kraft: '크라프트', blush: '연분홍', sage: '세이지', lavender: '라벤더', sky: '하늘색', butter: '연노랑', black: '검정' };
 
   const RIBBONS = {
     pink: '#f4b3c0',
