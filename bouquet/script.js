@@ -3,8 +3,7 @@
   'use strict';
 
   const SB_URL = 'https://mamunluhjcrmharnrqdz.supabase.co';
-  const SB_KEY = 'YOUR_PUBLISHABLE_KEY'; // ← 다른 공작 script.js에 있는 publishable 키로 바꾸기
-
+  const SB_KEY = 'sb_publishable_eh0u-VyFBgXRSovoBPrgsQ_F2pYPjWU'
   const F = window.Flowers;
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
