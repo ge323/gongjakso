@@ -5,6 +5,7 @@
   --acc: #b4566a;
   --line: #e4d9ca;
   --card: #fffdf8;
+  --hand: 'Gaegu', 'Gowun Batang', cursive; /* 편지 손글씨 */
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -38,7 +39,7 @@ main { max-width: 480px; margin: 0 auto; padding: 12px 16px 96px; }
 }
 .viewing #bq { max-height: 64vh; }
 #bq.drawing { touch-action: none; cursor: crosshair; }
-.to-line { min-height: 1.2em; font-family: 'Nanum Pen Script', cursive; font-size: 24px; }
+.to-line { min-height: 1.2em; font-family: var(--hand); font-size: 22px; font-weight: 700; }
 .hint { min-height: 1.5em; margin-top: 4px; font-size: 14px; color: var(--sub); }
 
 /* ∞ 안내선 */
@@ -153,12 +154,12 @@ input, textarea {
   color: var(--ink);
   font: inherit;
 }
+/* 쓰는 화면도 받는 화면과 같은 손글씨 */
+#to, #from, textarea { font-family: var(--hand); font-size: 19px; }
 textarea {
-  font-family: 'Nanum Pen Script', cursive;
-  font-size: 22px;
-  line-height: 31px;
+  line-height: 32px;
   resize: vertical;
-  background-image: repeating-linear-gradient(transparent 0 30px, #efe5d6 30px 31px);
+  background-image: repeating-linear-gradient(transparent 0 31px, #efe5d6 31px 32px);
   background-attachment: local;
   background-position: 0 10px;
 }
@@ -224,28 +225,33 @@ textarea {
   transition: opacity .7s, transform .7s;
 }
 .card.show { opacity: 1; transform: none; }
-.c-to, .c-from { font-family: 'Nanum Pen Script', cursive; font-size: 24px; }
-.c-from { margin-top: 12px; text-align: right; }
-.c-flowers {
-  display: grid;
-  gap: 6px;
-  margin: 8px 0 12px;
-  padding: 12px 0;
-  border-top: 1px dashed var(--line);
-  border-bottom: 1px dashed var(--line);
-  list-style: none;
-}
-.c-flowers li { display: grid; grid-template-columns: 30px auto 1fr; align-items: center; gap: 8px; font-size: 13px; }
-.c-flowers svg { width: 30px; height: 30px; overflow: visible; }
-.c-flowers span { color: var(--sub); }
+.c-to, .c-from { font-family: var(--hand); font-size: 21px; font-weight: 700; }
+.c-to { margin-bottom: 10px; }
+.c-from { margin-top: 14px; text-align: right; }
 .c-letter {
-  font-family: 'Nanum Pen Script', cursive;
-  font-size: 23px;
-  line-height: 1.45;
+  font-family: var(--hand);
+  font-size: 19px;
+  line-height: 1.7;
   white-space: pre-wrap;
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
+/* 꽃말은 편지 아래에 작게 */
+.c-flowers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 20px;
+  padding: 12px 0 0;
+  border-top: 1px dashed var(--line);
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--sub);
+}
+.c-flowers li { display: inline-flex; align-items: center; gap: 4px; }
+.c-flowers svg { width: 16px; height: 16px; overflow: visible; }
+.c-flowers b { font-weight: 400; color: var(--ink); }
+.c-flowers span::before { content: '· '; }
 .wide { display: block; width: fit-content; margin: 20px auto 0; }
 .missing { padding: 20px; text-align: center; color: var(--sub); }
 
