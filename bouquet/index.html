@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>꽃다발 + 편지 · 아이디어 공작소</title>
+  <meta name="description" content="꽃말로 꽃을 골라 꽃다발을 만들고 편지와 함께 보내요">
+  <meta property="og:title" content="꽃다발이 도착했어요">
+  <meta property="og:description" content="리본을 풀어 꽃과 편지를 확인해 보세요">
+  <meta property="og:image" content="https://ge323.github.io/gongjakso/bouquet/og-image.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=3">
+</head>
+<body>
+  <main>
+    <section class="stage">
+      <p class="to-line" id="to-line"></p>
+      <svg id="bq" viewBox="0 0 400 580" role="img" aria-label="꽃다발">
+        <g id="bq-body"></g>
+        <g id="bq-guide"></g>
+        <g id="bq-ribbon" filter="url(#wc)"></g>
+        <path id="bq-draw" fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="bq-draw-hl" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p class="hint" id="hint"></p>
+      <button class="ghost" id="open-btn" hidden>눌러서 열기</button>
+    </section>
+
+    <!-- 만들기 -->
+    <section id="maker" hidden>
+      <div data-step="flowers">
+        <div class="chips" id="moods"></div>
+        <div class="grid" id="grid"></div>
+        <h2>곁들임</h2>
+        <div class="grid" id="grid-fill"></div>
+      </div>
+
+      <div data-step="wrap" hidden>
+        <h2>포장지</h2>
+        <div class="swatches" id="sw-wrap"></div>
+      </div>
+
+      <div data-step="letter" hidden>
+        <input id="to" maxlength="20" placeholder="받는 사람" autocomplete="off">
+        <textarea id="letter" maxlength="1000" rows="8" placeholder="마음을 담아 적어 주세요"></textarea>
+        <div class="row">
+          <input id="from" maxlength="20" placeholder="보내는 사람" autocomplete="off">
+          <small><span id="len">0</span>/1000</small>
+        </div>
+      </div>
+
+      <div data-step="ribbon" hidden>
+        <h2>리본</h2>
+        <div class="swatches" id="sw-ribbon"></div>
+        <button class="ghost" id="auto" hidden>대신 묶어 줄게요</button>
+      </div>
+
+      <div data-step="done" hidden>
+        <p class="done">꽃다발이 준비됐어요</p>
+        <input id="link" readonly>
+        <div class="row center">
+          <button class="btn" id="copy">링크 복사</button>
+          <button class="btn" id="share">공유</button>
+        </div>
+        <div class="row center">
+          <a class="ghost" id="preview" target="_blank" rel="noopener">받는 화면 보기</a>
+          <a class="ghost" href="./">새로 만들기</a>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="ghost" id="prev">이전</button>
+        <span id="count"></span>
+        <button class="btn" id="next">다음</button>
+      </nav>
+    </section>
+
+    <!-- 받기 -->
+    <section id="viewer" hidden>
+      <p class="missing" id="missing" hidden></p>
+      <article class="card" id="card" hidden>
+        <p class="c-to" id="c-to"></p>
+        <ul class="c-flowers" id="c-flowers"></ul>
+        <p class="c-letter" id="c-letter"></p>
+        <p class="c-from" id="c-from"></p>
+      </article>
+      <a class="btn wide" id="again" href="./" hidden>나도 꽃다발 보내기</a>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="flowers.js?v=3"></script>
+  <script src="script.js?v=3"></script>
+  <script src="../visit-counter.js" defer></script>
+</body>
+</html>
