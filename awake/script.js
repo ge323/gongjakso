@@ -104,6 +104,7 @@ let leftAt = 0;
 let myDays = new Map();        // 불빛 달력: 'YYYY-MM-DD' → { s, st }
 let hourWaveAt = -999;         // 정각 파도가 시작된 프레임
 let nightStars = 0;            // 오늘 밤 모두가 집중 세션으로 띄운 별 수
+let cheersToday = 0;           // 오늘 단지에서 오간 응원 수 (서버 집계)
 const starBorn = new Map();    // 별 번호 → 막 떠오른 프레임 (반짝 효과)
 let lastWaveHour = null;
 const AWAY_GRACE_MS = 3 * 60 * 1000;
@@ -1466,6 +1467,7 @@ function draw() {
   for (let n = 1; n <= blocks * PER_BLOCK; n++) drawWindow(n);
   drawWalkers();
   drawSparkles();
+  drawReacts();
   drawWeatherFront(W);
   drawEffects();
 }
@@ -1892,6 +1894,7 @@ async function lightWindow() {
   if (first) {
     walkIn(myNo, look.c);     // 걸어 들어가서 불 켜기 (도착하면 딸깍)
     showToast(`${addr(myNo)}에 불을 켰어요`);
+    showReactBar();
   }
   sizeCanvas();
   updateMine();
@@ -1905,6 +1908,8 @@ async function loadWindows() {
   dbTotal = Number(data.total) || 0;
   taken = new Set((data.taken || []).map(Number));
   townSec = Number(data.town_sec) || townSec;
+  cheersToday = Math.max(Number(data.cheers_today) || 0, cheersToday);
+  updateCheerCount();
   nightStars = Math.max(Number(data.night_stars) || 0, starBorn.size ? nightStars : 0);
   recent = new Map(data.windows.map((w) => [Number(w.n), { c: w.c, s: w.s, h: Number(w.h) || 0, t: w.t, st: Number(w.st) || 0 }]));
   if (realtimeFailed) {
@@ -1963,6 +1968,7 @@ function joinRoom() {
     })
     .on("broadcast", { event: "wave" }, ({ payload }) => onWave(payload || {}))
     .on("broadcast", { event: "move" }, ({ payload }) => onMove(payload || {}))
+    .on("broadcast", { event: "react" }, ({ payload }) => onReact(payload || {}))
     .on("broadcast", { event: "star" }, ({ payload }) => {
       const from = Number((payload || {}).from);
       if (!Number.isInteger(from) || from === myNo) return;
@@ -2135,6 +2141,162 @@ document.addEventListener("visibilitychange", async () => {
 
 // ---------- 공유 ----------
 $("shareBtn").addEventListener("click", openCard);
+
+// ---------- 👋 반응 이모지 + 💬 응원 문구 ----------
+// 누르면 내 창문에서 이모지가 떠오르거나 말풍선이 떠요. 접속해 있는 모두에게 보이고,
+// 서버에는 "오늘 오간 응원 수"만 저장 (정해진 것만 고를 수 있어서 욕설 걱정 없음)
+const REACTS = ["👋", "🔥", "☕", "💤", "✨"];
+const CHEERS = [
+  "나도 깨어 있어요", "같이 해요", "여기 있어요",
+  "힘내요", "오늘도 수고했어요", "조금만 더", "잘하고 있어요",
+  "물 한 잔 마셔요", "스트레칭 한 번", "눈 좀 쉬어요",
+  "잘 자요", "좋은 꿈 꿔요", "내일 또 봐요",
+  "야식 땡긴다", "오늘 하늘 예쁘다",
+];
+const CHEER_GROUPS = [
+  ["같이 있어요", [0, 1, 2]],
+  ["응원", [3, 4, 5, 6]],
+  ["쉬어 가기", [7, 8, 9]],
+  ["밤 인사", [10, 11, 12]],
+  ["가벼운 말", [13, 14]],
+];
+const REACT_COOLDOWN_MS = 1600;
+const floaters = [];           // 떠오르는 이모지
+const bubbles = [];            // 말풍선
+let lastReactAt = 0;
+
+function showReactBar() {
+  $("react").hidden = !db || !myNo;
+  updateCheerCount();
+  // 처음 온 사람에게 한 번만: 버튼 줄이 반짝이며 안내
+  let hinted = false;
+  try { hinted = localStorage.getItem("awake-react-hint") === "1"; localStorage.setItem("awake-react-hint", "1"); } catch (e) {}
+  if (!hinted) {
+    $("reactRow").classList.add("is-hint");
+    setTimeout(() => $("reactRow").classList.remove("is-hint"), 5000);
+    showToast("아래 버튼을 눌러 단지에 인사해 보세요");
+  }
+}
+
+function updateCheerCount() {
+  $("cheerCount").innerHTML = cheersToday
+    ? `오늘 단지에 오간 응원 <b>${cheersToday}</b>개`
+    : "오늘 첫 응원을 보내 보세요";
+}
+
+function buildCheerSheet() {
+  $("cheerSheet").innerHTML = CHEER_GROUPS.map(([label, ids]) =>
+    `<div class="cheer-group"><p class="cheer-group-label">${label}</p><div class="chips">` +
+    ids.map((i) => `<button class="chip" type="button" data-k="${100 + i}">${CHEERS[i]}</button>`).join("") +
+    "</div></div>").join("");
+}
+buildCheerSheet();
+
+$("cheerBtn").addEventListener("click", () => {
+  const sheet = $("cheerSheet");
+  sheet.hidden = !sheet.hidden;
+  $("cheerBtn").setAttribute("aria-expanded", sheet.hidden ? "false" : "true");
+});
+
+document.querySelectorAll("#reactRow .react-btn").forEach((b) => b.addEventListener("click", () => sendReact(Number(b.dataset.k))));
+$("cheerSheet").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-k]");
+  if (!b) return;
+  sendReact(Number(b.dataset.k));
+  $("cheerSheet").hidden = true;
+  $("cheerBtn").setAttribute("aria-expanded", "false");
+});
+
+function validKind(k) {
+  return Number.isInteger(k) && ((k >= 0 && k < REACTS.length) || (k >= 100 && k < 100 + CHEERS.length));
+}
+
+async function sendReact(k) {
+  if (!myNo || !validKind(k)) return;
+  const now = Date.now();
+  if (now - lastReactAt < REACT_COOLDOWN_MS) {
+    showToast("잠깐 뒤에 다시 보낼 수 있어요");
+    return;
+  }
+  lastReactAt = now;
+  showReact(myNo, k);
+  cheersToday++;
+  updateCheerCount();
+  if (channel && connected) channel.send({ type: "broadcast", event: "react", payload: { from: myNo, k } });
+  if (db) {
+    const { data, error } = await db.rpc("send_cheer", { p_player_id: getPlayerId(), p_kind: k }).single();
+    if (!error && data) cheersToday = Math.max(cheersToday, Number(data.cheers_today) || 0);
+    updateCheerCount();
+  }
+}
+
+function onReact({ from, k }) {
+  from = Number(from);
+  k = Number(k);
+  if (!Number.isInteger(from) || from === myNo || !validKind(k)) return;
+  showReact(from, k);
+  cheersToday++;
+  updateCheerCount();
+}
+
+function showReact(n, k) {
+  if (k < 100) {
+    floaters.push({ n, e: REACTS[k], start: frame, dx: (Math.random() - 0.5) * 10 });
+    if (floaters.length > 60) floaters.shift();
+  } else {
+    // 같은 사람의 이전 말풍선은 바꿔치기
+    for (let i = bubbles.length - 1; i >= 0; i--) if (bubbles[i].n === n) bubbles.splice(i, 1);
+    bubbles.push({ n, text: CHEERS[k - 100], start: frame });
+  }
+}
+
+function drawReacts() {
+  const W = blocks * BLOCK_W;
+  // 떠오르는 이모지
+  tx.textAlign = "center";
+  tx.textBaseline = "middle";
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i];
+    const t = (frame - f.start) / 130;
+    if (t > 1) { floaters.splice(i, 1); continue; }
+    const { x, y } = winPos(f.n);
+    const px = x + WIN_W / 2 + f.dx * t + Math.sin(t * 9 + f.dx) * 3;
+    const py = y - 6 - t * 80;
+    tx.globalAlpha = t < 0.15 ? t / 0.15 : 1 - Math.max(0, (t - 0.6) / 0.4);
+    tx.font = `${Math.round(11 + Math.min(t, 0.2) * 15)}px 'Apple Color Emoji', 'Noto Color Emoji', sans-serif`;
+    tx.fillText(f.e, px, py);
+  }
+  tx.globalAlpha = 1;
+
+  // 말풍선
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const b = bubbles[i];
+    const age = frame - b.start;
+    if (age > 240) { bubbles.splice(i, 1); continue; }
+    const { x, y } = winPos(b.n);
+    tx.font = "bold 9.5px 'Pretendard Variable', Pretendard, -apple-system, 'Noto Sans KR', sans-serif";
+    const tw = Math.ceil(tx.measureText(b.text).width);
+    const bw = tw + 12, bh = 16;
+    const cx = x + WIN_W / 2;
+    const bx = Math.max(2, Math.min(W - bw - 2, cx - bw / 2));
+    const by = y - (b.n === myNo ? 38 : 22) - Math.min(age, 10) * 0.3;
+    tx.globalAlpha = age < 10 ? age / 10 : age > 210 ? (240 - age) / 30 : 1;
+    tx.fillStyle = "rgba(255,255,255,0.95)";
+    roundRect(bx, by, bw, bh, 5);
+    tx.fill();
+    tx.beginPath();                                    // 꼬리
+    tx.moveTo(cx - 3, by + bh);
+    tx.lineTo(cx + 3, by + bh);
+    tx.lineTo(cx, by + bh + 4);
+    tx.closePath();
+    tx.fill();
+    tx.fillStyle = "#1b1e2b";
+    tx.textAlign = "center";
+    tx.textBaseline = "middle";
+    tx.fillText(b.text, bx + bw / 2, by + bh / 2 + 0.5);
+    tx.globalAlpha = 1;
+  }
+}
 
 // ---------- 🎯 집중 세션 ----------
 function sessionLeft() {
