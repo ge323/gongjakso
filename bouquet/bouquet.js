@@ -624,7 +624,7 @@ window.Flowers = (() => {
   const svg = $('#bq'), body = $('#bq-body'), rib = $('#bq-ribbon'), gd = $('#bq-guide');
   const drawP = $('#bq-draw'), drawH = $('#bq-draw-hl'), hint = $('#hint');
 
-  const st = { flowers: [], wrap: 'cream', ribbon: 'pink', to: '', from: '', letter: '', pub: false, nick: '' };
+  const st = { flowers: [], wrap: 'cream', ribbon: 'pink', to: '', from: '', letter: '' };
   let mode = 'make', mood = 'all', step = 0, tie = 0, fails = 0, sending = false;
   let pts = null, pull = null, opened = false;
 
@@ -812,8 +812,6 @@ window.Flowers = (() => {
       st.to = $('#to').value.trim();
       st.letter = $('#letter').value.trim();
       st.from = $('#from').value.trim();
-      st.pub = $('#pub').checked;
-      st.nick = st.pub ? $('#nick').value.trim() : '';
       if (!st.to || !st.letter || !st.from) return toast('받는 사람, 편지, 보내는 사람을 모두 적어 주세요');
     }
     if (name === 'ribbon') return send();
@@ -1151,13 +1149,11 @@ window.Flowers = (() => {
         p_to: st.to,
         p_from: st.from,
         p_letter: st.letter,
-        p_public: st.pub,
-        p_nickname: st.nick,
       });
       shareUrl = `${pageBase()}?b=${id}`;
       $('#link').value = shareUrl;
       $('#preview').href = shareUrl;
-      $('#shop-go').hidden = !st.pub;
+      lastId = id;
       sending = false;
       go(STEPS.indexOf('done'));
       if (KAKAO_KEY) kakaoReady = prepareKakao(); // 미리 준비해 두면 버튼 누르자마자 열림
@@ -1315,7 +1311,29 @@ window.Flowers = (() => {
     } catch { }
   });
 
-  $('#pub').addEventListener('change', e => { $('#nick').hidden = !e.target.checked; });
+  // 완료 화면: 보낸 꽃다발을 꽃집에 자랑하기 (원하는 사람만)
+  let lastId = null;
+  $('#brag-open').addEventListener('click', () => {
+    $('#brag-open').hidden = true;
+    $('#brag-form').hidden = false;
+    $('#nick').focus();
+  });
+  $('#brag-send').addEventListener('click', async () => {
+    const btn = $('#brag-send');
+    if (!lastId || btn.disabled) return;
+    btn.disabled = true;
+    try {
+      await rpc('publish_bouquet', { p_id: lastId, p_player_id: playerId(), p_nickname: $('#nick').value.trim() });
+      $('#brag-form').hidden = true;
+      $('#shop-go').hidden = false;
+      chime([784, 988, 1319]);
+      toast('모두의 꽃집에 올라갔어요');
+    } catch (err) {
+      toast(String(err.message).includes('bad_text') ? '닉네임에 쓸 수 없는 단어가 있어요' : '올리지 못했어요. 잠시 후 다시 해 주세요');
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   // 따라 만들기: 주소의 꽃 구성으로 시작
   function applyCopy(q) {

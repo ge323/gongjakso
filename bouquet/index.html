@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
   <main>
@@ -54,8 +54,6 @@
           <input id="from" maxlength="20" placeholder="보내는 사람" autocomplete="off">
           <small><span id="len">0</span>/1000</small>
         </div>
-        <label class="pub"><input type="checkbox" id="pub"> 모두의 꽃집에 자랑하기 <small>꽃다발 그림만 보여요</small></label>
-        <input id="nick" maxlength="10" placeholder="닉네임 (비우면 익명)" autocomplete="off" hidden>
       </div>
 
       <div data-step="ribbon" hidden>
@@ -72,10 +70,20 @@
           <button class="btn" id="share">공유</button>
           <button class="btn" id="copy">복사</button>
         </div>
+        <div class="brag">
+          <button class="btn brag-btn" id="brag-open">🌷 모두의 꽃집에 자랑하기</button>
+          <div id="brag-form" hidden>
+            <p class="brag-note">꽃다발 그림만 보여요. 편지와 이름은 비공개예요</p>
+            <div class="row">
+              <input id="nick" maxlength="10" placeholder="닉네임 (비우면 익명)" autocomplete="off">
+              <button class="btn" id="brag-send">올리기</button>
+            </div>
+          </div>
+          <a class="ghost" id="shop-go" href="./?shop=1" hidden>🌷 꽃집에 올라갔어요 · 보러 가기</a>
+        </div>
         <div class="row center">
           <a class="ghost" id="preview" target="_blank" rel="noopener">받는 화면 보기</a>
           <a class="ghost" href="./">새로 만들기</a>
-          <a class="ghost" id="shop-go" href="./?shop=1" hidden>모두의 꽃집 보기</a>
         </div>
       </div>
 
@@ -125,7 +133,7 @@
       if (h) h.textContent = '오류: ' + (e.message || (e.target && (e.target.src || e.target.href)) || '알 수 없음');
     }, true);
   </script>
-  <script src="bouquet.js?v=8"></script>
+  <script src="bouquet.js?v=9"></script>
   <script src="../visit-counter.js" defer></script>
 </body>
 </html>

@@ -364,9 +364,12 @@ textarea {
 /* ---------- 모두의 꽃집 ---------- */
 .shop-link { display: block; width: fit-content; margin: 2px 0 2px auto; font-size: 13px; color: #8a5a3b; text-decoration: none; }
 .shop-link.center { margin: 10px auto 0; }
-.pub { display: flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 14px; }
-.pub input { width: auto; margin: 0; accent-color: #8a5a3b; }
-.pub small { color: var(--sub); font-size: 12px; }
+.brag { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); text-align: center; }
+.brag-btn { background: #8a5a3b; }
+.brag-note { margin-bottom: 2px; font-size: 12px; color: var(--sub); }
+.brag .row input { margin-top: 0; }
+.brag .row .btn { flex: none; }
+#brag-form .row { margin-top: 8px; }
 #shop { padding-top: 8px; }
 .shop-title { font-size: 20px; text-align: center; }
 .shop-count { min-height: 1.4em; margin: 4px 0 14px; text-align: center; font-size: 12px; color: var(--sub); }
