@@ -140,7 +140,8 @@ window.Flowers = (() => {
     return d;
   }
 
-  const wc = inner => `<g filter="url(#wc)">${inner}</g>`;
+  // 필터 없이 그려야 폰에서 또렷함 (필터는 저해상도로 뭉개짐)
+  const wc = inner => `<g>${inner}</g>`;
   const calyx = (y = 26) => `<path d="M-9 ${y}C-15 ${y + 7}-21 ${y + 7}-25 ${y + 5}C-17 ${y + 2}-13 ${y}-8 ${y - 2}ZM9 ${y}C15 ${y + 7} 21 ${y + 7} 25 ${y + 5}C17 ${y + 2} 13 ${y} 8 ${y - 2}Z" fill="url(#l-leaf)" fill-opacity=".9" stroke="${PAL.leaf[2]}" stroke-width=".8" stroke-opacity=".4"/>`;
 
   /* ---------- 꽃 (옆·비스듬히 본 모습, 가운데 0,0) ---------- */
@@ -418,7 +419,7 @@ window.Flowers = (() => {
       const a = (FILL_ANG[i] + (rnd() - .5) * 10) * Math.PI / 180;
       const x = DOME.x + Math.cos(a) * DOME.r * 1.02, y = DOME.y + Math.sin(a) * DOME.r * .95;
       const rot = deg(Math.atan2(y - B.y, x - B.x)) + 90;
-      return `<g transform="translate(${f1(x)} ${f1(y)}) rotate(${f1(rot)}) scale(${f1(.95 + rnd() * .15)})">${byId[id].draw(rnd)}</g>`;
+      return `<g transform="translate(${f1(x)} ${f1(y)}) rotate(${f1(rot)}) scale(${f1(.95 + rnd() * .15)})"><g class="fh" data-id="${id}" style="--d:${f1(-rnd() * 4)}s">${byId[id].draw(rnd)}</g></g>`;
     }).join('');
 
     // 3) 꽃 줄기 + 꽃마다 바깥쪽으로 받친 잎 3장
@@ -436,7 +437,7 @@ window.Flowers = (() => {
 
     // 4) 꽃: 뒤(위)부터 앞(아래)으로, 주인공은 맨 앞
     const order = n ? [...M.slice(1).sort((a, b) => a.y - b.y), M[0]] : [];
-    out += order.map(it => `<g transform="translate(${f1(it.x)} ${f1(it.y)}) rotate(${f1(it.rot)}) scale(${f1(it.s)})">${byId[it.id].draw(rnd)}</g>`).join('');
+    out += order.map(it => `<g transform="translate(${f1(it.x)} ${f1(it.y)}) rotate(${f1(it.rot)}) scale(${f1(it.s)})"><g class="fh" data-id="${it.id}" style="--d:${f1(-rnd() * 4)}s">${byId[it.id].draw(rnd)}</g></g>`).join('');
 
     return out + frontWrap(st.wrap);
   }
@@ -499,7 +500,15 @@ window.Flowers = (() => {
 
   const head = id => byId[id].draw(rng(hash(id)));
 
-  return { MOODS, FLOWERS, byId, WRAPS, WRAP_NAMES, RIBBONS, RIBBON_NAMES, defs, compose, ribbon, guide, isInfinity, head };
+  // 누르면 떨어지는 꽃잎 색
+  const PETAL = {
+    red_rose: PAL.red[1], lisianthus: PAL.lis[2], red_tulip: PAL.tulip[1], pink_rose: PAL.pink[1],
+    carnation: PAL.carn[1], sunflower: PAL.sun[1], freesia: PAL.free[1], gerbera: PAL.ger[1],
+    lily_valley: '#ffffff', daisy: '#ffffff', forget_me_not: PAL.blue[1], ranunculus: PAL.ranu[1],
+    gyp: '#ffffff', eucalyptus: PAL.euca[1],
+  };
+
+  return { PETAL, MOODS, FLOWERS, byId, WRAPS, WRAP_NAMES, RIBBONS, RIBBON_NAMES, defs, compose, ribbon, guide, isInfinity, head };
 })();
 
 /* 💐 bouquet/script.js — 만들기(리본 묶기) + 받기(리본 풀기) */
@@ -919,6 +928,88 @@ window.Flowers = (() => {
   $('#open-btn').addEventListener('click', untie);
 
   /* ================= 포인터 (그리기 / 당기기) ================= */
+  /* ================= 받은 꽃 누르기: 흔들림 + 하트 + 꽃말 ================= */
+  const PLUCK = [523, 587, 659, 784, 880, 1047, 1175];
+  function pluck() {
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.type = 'triangle';
+      o.frequency.value = PLUCK[Math.floor(Math.random() * PLUCK.length)];
+      g.gain.setValueAtTime(.09, t);
+      g.gain.exponentialRampToValueAtTime(.0001, t + .6);
+      o.connect(g).connect(ac.destination);
+      o.start(t); o.stop(t + .65);
+    } catch { }
+  }
+
+  function hearts(x, y) {
+    const colors = ['#f4a3b5', '#f7c6cf', '#e7798a', '#f6d27a', '#c8b5e3'];
+    const n = 5 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement('span');
+      el.className = 'heart';
+      el.textContent = Math.random() < .8 ? '♥' : '✿';
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.color = colors[Math.floor(Math.random() * colors.length)];
+      el.style.setProperty('--dx', ((Math.random() - .5) * 90).toFixed(0) + 'px');
+      el.style.setProperty('--dy', (-60 - Math.random() * 60).toFixed(0) + 'px');
+      el.style.setProperty('--r', ((Math.random() - .5) * 50).toFixed(0) + 'deg');
+      el.style.fontSize = (12 + Math.random() * 10).toFixed(0) + 'px';
+      el.style.animationDelay = (i * 40) + 'ms';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1400 + i * 40);
+    }
+  }
+
+  // 꽃잎이 팔랑팔랑 떨어짐
+  function petals(x, y, color) {
+    const n = 3 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement('span');
+      el.className = 'petal';
+      el.style.left = (x + (Math.random() - .5) * 30) + 'px';
+      el.style.top = (y + (Math.random() - .5) * 20) + 'px';
+      el.style.background = color;
+      el.style.setProperty('--dx', ((Math.random() - .5) * 80).toFixed(0) + 'px');
+      el.style.setProperty('--dy', (110 + Math.random() * 90).toFixed(0) + 'px');
+      el.style.setProperty('--r', ((Math.random() - .5) * 540).toFixed(0) + 'deg');
+      el.style.animationDelay = (60 + i * 70) + 'ms';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 2000 + i * 70);
+    }
+  }
+
+  let tipT;
+  function tip(x, y, fl) {
+    let t = $('#tip');
+    if (!t) { t = document.createElement('div'); t.id = 'tip'; document.body.appendChild(t); }
+    t.innerHTML = `<b>${fl.name}</b> · ${fl.meaning}`;
+    t.style.left = Math.min(Math.max(x, 100), innerWidth - 100) + 'px';
+    t.style.top = (y - 46) + 'px';
+    t.classList.remove('show');
+    void t.offsetWidth;
+    t.classList.add('show');
+    clearTimeout(tipT);
+    tipT = setTimeout(() => t.classList.remove('show'), 1600);
+  }
+
+  svg.addEventListener('click', e => {
+    if (mode !== 'view') return;
+    const g = e.target.closest('.fh');
+    if (!g) return;
+    g.classList.remove('tap');
+    void g.getBoundingClientRect(); // 연달아 눌러도 다시 흔들리게
+    g.classList.add('tap');
+    g.addEventListener('animationend', () => g.classList.remove('tap'), { once: true });
+    hearts(e.clientX, e.clientY);
+    petals(e.clientX, e.clientY, F.PETAL[g.dataset.id] || '#f7c6cf');
+    tip(e.clientX, e.clientY, F.byId[g.dataset.id]);
+    pluck();
+    buzz(10);
+  });
+
   svg.addEventListener('pointerdown', e => {
     if (mode === 'make') {
       if (STEPS[step] !== 'ribbon' || tie >= 2) return;
