@@ -236,22 +236,21 @@ textarea {
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
-/* 꽃말은 편지 아래에 작게 */
+/* 꽃말은 편지 아래에 2칸으로 */
 .c-flowers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
   margin-top: 20px;
-  padding: 12px 0 0;
+  padding: 14px 0 0;
   border-top: 1px dashed var(--line);
   list-style: none;
-  font-size: 11.5px;
-  color: var(--sub);
 }
-.c-flowers li { display: inline-flex; align-items: center; gap: 4px; }
-.c-flowers svg { width: 16px; height: 16px; overflow: visible; }
-.c-flowers b { font-weight: 400; color: var(--ink); }
-.c-flowers span::before { content: '· '; }
+.c-flowers li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.c-flowers svg { flex: none; width: 22px; height: 22px; overflow: visible; }
+.c-flowers p { min-width: 0; line-height: 1.35; }
+.c-flowers b { display: block; font-size: 12.5px; font-weight: 400; color: var(--ink); }
+.c-flowers span { display: block; font-size: 11.5px; color: var(--sub); }
 .wide { display: block; width: fit-content; margin: 20px auto 0; }
 .missing { padding: 20px; text-align: center; color: var(--sub); }
 
@@ -345,3 +344,19 @@ textarea {
   100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--r)); }
 }
 @media (prefers-reduced-motion: reduce) { .viewing .fh { animation: none; } }
+
+/* 푸터 (다른 공작품과 같은 구성, 색만 이 테마에 맞춰 갈색) */
+.footer {
+  margin-top: 36px;
+  text-align: center;
+  color: var(--sub);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.home-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #8a5a3b;
+  font-weight: 700;
+  text-decoration: none;
+}
