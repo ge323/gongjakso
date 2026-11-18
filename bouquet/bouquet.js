@@ -32,6 +32,11 @@ window.Flowers = (() => {
     euca: ['#e1eae3', '#bccec3', '#91aa9d'],
     yel: ['#fff6cc', '#f9de7a', '#e8b93c'],
     sage: ['#e4ecdb', '#bacdaf', '#8fa88a'],
+    iris: ['#eee9fb', '#ab9ee4', '#6f5fbf'],
+    stat: ['#f3ebfb', '#cbb3e8', '#9d80c9'],
+    aster: ['#f6effc', '#d2b9ee', '#a27fd0'],
+    frost: ['#ffffff', '#f3eef8', '#cbbfdc'],
+    ivy: ['#d8e8c9', '#89af71', '#5a8148'],
   };
 
   const WRAPS = {
@@ -298,23 +303,103 @@ window.Flowers = (() => {
     return wc(s);
   };
 
+
+  /* ---------- 추가 꽃 (생김새는 실제 꽃의 특징대로) ---------- */
+  // 아이리스: 위로 선 꽃잎(standard) 3장 + 아래로 처진 꽃잎(fall) 3장, 처진 꽃잎에 노란 무늬
+  const iris = () => {
+    const c = PAL.iris[2], g = 'url(#l-iris)', r = 'url(#g-iris)';
+    return wc(
+      P('M0-6C-12-14-12-36 0-42C12-36 12-14 0-6Z', r, c) +
+      P('M-4-6C-20-10-26-30-16-38C-8-30-4-18-4-6Z', g, c) +
+      P('M4-6C20-10 26-30 16-38C8-30 4-18 4-6Z', g, c) +
+      P('M-2-2C-20-6-36 4-32 20C-24 22-10 12-2 2Z', r, c) +
+      P('M2-2C20-6 36 4 32 20C24 22 10 12 2 2Z', r, c) +
+      P('M-6 0C-10 14-6 28 0 30C6 28 10 14 6 0Z', r, c) +
+      `<path d="M-12 3C-17 6-21 9-23 13M12 3C17 6 21 9 23 13M0 5L0 18" fill="none" stroke="#f3cf5c" stroke-width="2.6" stroke-linecap="round"/>` +
+      `<path d="M0 30L0 40" stroke="${PAL.leaf[1]}" stroke-width="2"/>`
+    );
+  };
+
+  // 스타티스: 가지 끝마다 종이 같은 보라 꽃받침이 뭉쳐 있고, 가운데 작은 흰 꽃
+  const statice = rnd => {
+    let st = '', fl = '';
+    for (let i = 0; i < 5; i++) {
+      const ex = f1(-28 + i * 14 + (rnd() - .5) * 6), ey = f1(-14 - rnd() * 22 - (i % 2) * 8);
+      st += `<path d="M0 34Q${f1(ex * .4)} 10 ${ex} ${ey}" fill="none" stroke="${PAL.sage[1]}" stroke-width="1.2"/>`;
+      for (let j = 0; j < 7; j++) {
+        const x = f1(ex + (rnd() - .5) * 12), y = f1(ey + (rnd() - .5) * 9);
+        fl += `<path d="M${x} ${f1(y - 3.4)}l3 1.6-.4 3.4-2.6 1.6-2.6-1.6-.4-3.4z" fill="url(#g-stat)" stroke="${PAL.stat[2]}" stroke-width=".5" stroke-opacity=".6"/>`;
+        if (j % 2) fl += `<circle cx="${x}" cy="${y}" r=".9" fill="#fff"/>`;
+      }
+    }
+    return wc(st + fl);
+  };
+
+  // 과꽃: 가늘고 긴 꽃잎이 여러 겹, 가운데 노란 꽃술
+  const chinaAster = rnd => wc(`<g transform="scale(1 .9)">` +
+    ring(26, petal(25, 3.2), 'url(#l-aster)', { r0: 7, rot: rnd() * 14, stroke: PAL.aster[2] }) +
+    ring(22, petal(18, 2.8), 'url(#l-aster)', { r0: 6, rot: 7, stroke: PAL.aster[2] }) +
+    ring(16, petal(11, 2.4), 'url(#g-aster)', { r0: 5, rot: 3, stroke: PAL.aster[2] }) +
+    `<circle r="6.5" fill="url(#g-yel)" stroke="${PAL.yel[2]}" stroke-width=".7" stroke-opacity=".5"/></g>`);
+
+  // 공작초: 가지마다 작은 흰 꽃(가운데 노랑)이 여러 송이
+  const frostOne = () => ring(14, petal(8, 1.8), 'url(#l-frost)', { r0: 2.4, stroke: PAL.frost[2] }) +
+    `<circle r="2.6" fill="url(#g-yel)"/>`;
+  const frostAster = rnd => {
+    let st = '', fl = '';
+    for (let i = 0; i < 11; i++) {
+      const a = (-160 + rnd() * 140) * Math.PI / 180, r = 14 + rnd() * 22;
+      const x = f1(Math.cos(a) * r), y = f1(Math.sin(a) * r * .9 - 4);
+      st += `<path d="M0 34Q${f1(x * .5)} ${f1(y * .3 + 10)} ${x} ${y}" fill="none" stroke="${PAL.sage[1]}" stroke-width=".9"/>`;
+      fl += `<g transform="translate(${x} ${y}) rotate(${f1(rnd() * 60)}) scale(${f1(.85 + rnd() * .35)})">${frostOne()}</g>`;
+    }
+    return wc(st + fl);
+  };
+
+  // 카모마일: 흰 혀꽃이 살짝 뒤로 젖혀지고, 가운데가 볼록한 노란 꽃
+  const chamOne = () => ring(16, petal(13, 3), 'url(#l-wht)', { r0: 6, stroke: '#b9bfae' }) +
+    `<ellipse rx="7" ry="6" fill="url(#g-yel)" stroke="${PAL.yel[2]}" stroke-width=".8" stroke-opacity=".45"/>` +
+    `<ellipse cy="-1.5" rx="4.5" ry="3" fill="#fff6c6" opacity=".6"/>`;
+  const chamomile = rnd => wc(
+    `<path d="M-20 4Q-8 24 0 34M18-2Q8 22 0 34M2-16Q2 10 0 34" fill="none" stroke="${PAL.leaf[1]}" stroke-width="1.5"/>` +
+    [[-20, 2, .95], [18, -4, .9], [2, -18, 1.05]].map(([x, y, k]) =>
+      `<g transform="translate(${x} ${y}) rotate(${f1((rnd() - .5) * 30)}) scale(${k} ${f1(k * .82)})">${chamOne()}</g>`).join(''));
+
+  // 아이비 (곁들임): 3~5갈래로 갈라진 잎이 덩굴에
+  const IVY = 'M0 0C-4-2-10-2-12-6C-8-8-8-12-6-14C-4-12-2-14 0-18C2-14 4-12 6-14C8-12 8-8 12-6C10-2 4-2 0 0Z';
+  const ivy = rnd => {
+    let s = `<path d="M0 44C-10 20 10 0-4-24C-12-38 0-46-6-54" fill="none" stroke="${PAL.ivy[2]}" stroke-width="1.3"/>`;
+    [[-2, 30, 1], [3, 14, -1], [2, 0, 1], [-4, -16, -1], [-7, -32, 1], [-5, -48, -1]].forEach(([x, y, side], i) => {
+      const k = f1(1.1 - i * .09), a = f1(side * (50 + rnd() * 20));
+      s += `<g transform="translate(${x} ${y}) rotate(${a}) scale(${k})"><path d="${IVY}" fill="url(#l-ivy)" stroke="${PAL.ivy[2]}" stroke-width=".7" stroke-opacity=".5"/>` +
+        `<path d="M0 0L0-15M0-4L-8-7M0-4L8-7" fill="none" stroke="#fff" stroke-width=".7" stroke-opacity=".55"/></g>`;
+    });
+    return wc(s);
+  };
+
   /* ---------- 꽃 목록 ---------- */
   // stemAt: 줄기가 붙는 위치 (꽃 그림 기준)
   const FLOWERS = [
     { id: 'red_rose', name: '빨간 장미', meaning: '열렬한 사랑', moods: ['love'], draw: rose('red'), stemAt: [0, 33] },
     { id: 'lisianthus', name: '리시안셔스', meaning: '변치 않는 사랑', moods: ['love'], draw: lisianthus, stemAt: [0, 30] },
     { id: 'red_tulip', name: '빨간 튤립', meaning: '사랑의 고백', moods: ['love'], draw: tulip, stemAt: [0, 34], vis: .9 },
-    { id: 'pink_rose', name: '분홍 장미', meaning: '감사, 행복한 사랑', moods: ['thanks', 'love'], draw: rose('pink'), stemAt: [0, 33] },
-    { id: 'carnation', name: '카네이션', meaning: '존경과 감사', moods: ['thanks'], draw: carnation, stemAt: [0, 40] },
-    { id: 'sunflower', name: '해바라기', meaning: '당신만을 바라봐요', moods: ['cheer'], draw: sunflower, vis: .92 },
-    { id: 'freesia', name: '프리지아', meaning: '새로운 시작', moods: ['cheer', 'congrats'], draw: freesia, stemAt: [-26, 16], spray: true },
-    { id: 'gerbera', name: '거베라', meaning: '희망', moods: ['cheer'], draw: gerbera },
-    { id: 'lily_valley', name: '은방울꽃', meaning: '다시 찾아올 행복', moods: ['comfort'], draw: lilyValley, stemAt: [-6, 30], spray: true, vis: .95 },
-    { id: 'daisy', name: '데이지', meaning: '평화, 희망', moods: ['comfort'], draw: daisy, spray: true, vis: .95 },
+    { id: 'pink_rose', name: '분홍 장미', meaning: '사랑의 맹세', moods: ['love'], draw: rose('pink'), stemAt: [0, 33] },
+    { id: 'carnation', name: '카네이션', meaning: '사랑, 감사', moods: ['thanks', 'love'], draw: carnation, stemAt: [0, 40] },
+    { id: 'sunflower', name: '해바라기', meaning: '기다림, 동경', moods: ['miss'], draw: sunflower, vis: .92 },
+    { id: 'freesia', name: '프리지아', meaning: '천진난만', moods: ['cheer', 'congrats'], draw: freesia, stemAt: [-26, 16], spray: true },
+    { id: 'gerbera', name: '거베라', meaning: '신비', moods: [], draw: gerbera },
+    { id: 'lily_valley', name: '은방울꽃', meaning: '다시 찾은 행복', moods: ['comfort'], draw: lilyValley, stemAt: [-6, 30], spray: true, vis: .95 },
+    { id: 'daisy', name: '데이지', meaning: '평화, 희망', moods: ['comfort', 'cheer'], draw: daisy, spray: true, vis: .95 },
     { id: 'forget_me_not', name: '물망초', meaning: '나를 잊지 마세요', moods: ['miss'], draw: forgetMeNot, spray: true, vis: .92 },
-    { id: 'ranunculus', name: '라넌큘러스', meaning: '빛나는 매력', moods: ['congrats'], draw: ranunculus, stemAt: [0, 30] },
+    { id: 'ranunculus', name: '라넌큘러스', meaning: '매력', moods: ['congrats'], draw: ranunculus, stemAt: [0, 30] },
+    { id: 'iris', name: '아이리스', meaning: '좋은 소식', moods: ['congrats', 'cheer'], draw: iris, stemAt: [0, 40] },
+    { id: 'statice', name: '스타티스', meaning: '변치 않는 마음', moods: ['love', 'miss'], draw: statice, stemAt: [0, 34], spray: true },
+    { id: 'china_aster', name: '과꽃', meaning: '믿는 마음, 추억', moods: ['miss', 'cheer'], draw: chinaAster, vis: .95 },
+    { id: 'frost_aster', name: '공작초', meaning: '항상 좋은 기분, 안부', moods: ['cheer', 'miss'], draw: frostAster, stemAt: [0, 34], spray: true },
+    { id: 'chamomile', name: '카모마일', meaning: '역경에 굴하지 않는 강인함', moods: ['cheer', 'comfort'], draw: chamomile, stemAt: [0, 34], spray: true },
     { id: 'gyp', name: '안개꽃', meaning: '맑은 마음', filler: true, draw: gyp, stemAt: [0, 44] },
-    { id: 'eucalyptus', name: '유칼립투스', meaning: '추억', filler: true, draw: eucalyptus, stemAt: [0, 46] },
+    { id: 'eucalyptus', name: '유칼립투스', meaning: '', filler: true, draw: eucalyptus, stemAt: [0, 46] },
+    { id: 'ivy', name: '아이비', meaning: '우정', filler: true, draw: ivy, stemAt: [0, 44] },
   ];
   const byId = Object.fromEntries(FLOWERS.map(f => [f.id, f]));
 
@@ -506,6 +591,7 @@ window.Flowers = (() => {
     carnation: PAL.carn[1], sunflower: PAL.sun[1], freesia: PAL.free[1], gerbera: PAL.ger[1],
     lily_valley: '#ffffff', daisy: '#ffffff', forget_me_not: PAL.blue[1], ranunculus: PAL.ranu[1],
     gyp: '#ffffff', eucalyptus: PAL.euca[1],
+    iris: PAL.iris[1], statice: PAL.stat[1], china_aster: PAL.aster[1], frost_aster: '#ffffff', chamomile: '#ffffff', ivy: PAL.ivy[1],
   };
 
   return { PETAL, MOODS, FLOWERS, byId, WRAPS, WRAP_NAMES, RIBBONS, RIBBON_NAMES, defs, compose, ribbon, guide, isInfinity, head };
@@ -775,7 +861,7 @@ window.Flowers = (() => {
     $('#c-letter').textContent = st.letter;
     $('#c-flowers').innerHTML = [...new Set(st.flowers)]
       .filter(id => F.byId[id])
-      .map(id => { const fl = F.byId[id]; return `<li>${flowerSvg(fl)}<b>${fl.name}</b><span>${fl.meaning}</span></li>`; })
+      .map(id => { const fl = F.byId[id]; return `<li>${flowerSvg(fl)}<p><b>${fl.name}</b>${fl.meaning ? `<span>${fl.meaning}</span>` : ''}</p></li>`; })
       .join('');
   }
 
@@ -1005,7 +1091,6 @@ window.Flowers = (() => {
     g.addEventListener('animationend', () => g.classList.remove('tap'), { once: true });
     hearts(e.clientX, e.clientY);
     petals(e.clientX, e.clientY, F.PETAL[g.dataset.id] || '#f7c6cf');
-    tip(e.clientX, e.clientY, F.byId[g.dataset.id]);
     pluck();
     buzz(10);
   });
