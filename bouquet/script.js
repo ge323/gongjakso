@@ -3,7 +3,14 @@
   'use strict';
 
   const SB_URL = 'https://mamunluhjcrmharnrqdz.supabase.co';
-  const SB_KEY = 'sb_publishable_eh0u-VyFBgXRSovoBPrgsQ_F2pYPjWU'
+  const SB_KEY = 'sb_publishable_eh0u-VyFBgXRSovoBPrgsQ_F2pYPjWU';
+
+  const SITE = 'https://ge323.github.io/gongjakso/bouquet/';
+  const OG_IMAGE = SITE + 'og-image.png';
+  // 카카오 JavaScript 키 (developers.kakao.com → 내 애플리케이션 → 앱 키). 비어 있으면 카카오톡 버튼을 숨김
+  const KAKAO_KEY = '';
+  const KAKAO_SDK = 'https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js';
+
   const F = window.Flowers;
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -376,11 +383,12 @@
         p_from: st.from,
         p_letter: st.letter,
       });
-      const url = `${location.origin}${location.pathname}?b=${id}`;
-      $('#link').value = url;
-      $('#preview').href = url;
+      shareUrl = `${pageBase()}?b=${id}`;
+      $('#link').value = shareUrl;
+      $('#preview').href = shareUrl;
       sending = false;
       go(STEPS.indexOf('done'));
+      if (KAKAO_KEY) kakaoReady = prepareKakao(); // 미리 준비해 두면 버튼 누르자마자 열림
     } catch (err) {
       const m = String(err.message);
       toast(m.includes('too_many') ? '오늘은 더 보낼 수 없어요. 내일 다시 보내 주세요'
@@ -392,14 +400,85 @@
     }
   }
 
+  /* ================= 공유 ================= */
+  // 내 PC에서 파일로 열었을 때도 실제 사이트 주소로 링크를 만듦
+  const pageBase = () =>
+    location.protocol === 'file:' || /^(localhost|127\.)/.test(location.hostname)
+      ? SITE
+      : location.origin + location.pathname;
+  let shareUrl = '', kakaoReady = null;
+  const shareTitle = () => `${st.to}님께 도착한 꽃다발이 있어요 💐`;
+  const SHARE_DESC = '리본을 풀어 꽃과 편지를 확인해 보세요';
+
   $('#copy').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText($('#link').value); }
+    const text = `${shareTitle()}\n${SHARE_DESC}\n${shareUrl}`;
+    try { await navigator.clipboard.writeText(text); }
     catch { $('#link').select(); document.execCommand('copy'); }
-    toast('링크를 복사했어요');
+    toast('메시지와 링크를 복사했어요');
   });
+
   if (!navigator.share) $('#share').hidden = true;
   $('#share').addEventListener('click', async () => {
-    try { await navigator.share({ title: '꽃다발이 도착했어요', url: $('#link').value }); } catch { }
+    try { await navigator.share({ title: shareTitle(), text: `${shareTitle()}\n${SHARE_DESC}`, url: shareUrl }); } catch { }
+  });
+
+  // 지금 꽃다발 그림을 PNG 파일로 (카카오톡 미리보기용)
+  async function bouquetFile() {
+    const W = 800;
+    const c = svg.cloneNode(true);
+    c.querySelector('#bq-guide').innerHTML = '';
+    c.querySelectorAll('#bq-draw, #bq-draw-hl').forEach(el => el.remove());
+    c.removeAttribute('class');
+    c.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    c.setAttribute('width', W);
+    c.setAttribute('height', W);
+    c.setAttribute('viewBox', '-25 50 450 450');
+    c.insertAdjacentHTML('afterbegin', `<rect x="-25" y="50" width="450" height="450" fill="#f7f1e8"/>` + $('svg.defs defs').outerHTML);
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(c));
+    await img.decode();
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = W;
+    cv.getContext('2d').drawImage(img, 0, 0, W, W);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    return new File([blob], 'bouquet.png', { type: 'image/png' });
+  }
+
+  function loadKakao() {
+    return new Promise((ok, no) => {
+      if (window.Kakao) return ok();
+      const s = document.createElement('script');
+      s.src = KAKAO_SDK;
+      s.crossOrigin = 'anonymous';
+      s.onload = ok;
+      s.onerror = no;
+      document.head.appendChild(s);
+    });
+  }
+
+  // SDK 불러오기 + 꽃다발 그림 올리기 → 미리보기 이미지 주소
+  async function prepareKakao() {
+    await loadKakao();
+    if (!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
+    try {
+      const r = await Kakao.Share.uploadImage({ file: [await bouquetFile()] });
+      return r.infos.original.url;
+    } catch {
+      return OG_IMAGE;
+    }
+  }
+
+  if (!KAKAO_KEY) $('#kakao').hidden = true;
+  $('#kakao').addEventListener('click', async () => {
+    let imageUrl;
+    try { imageUrl = await (kakaoReady || (kakaoReady = prepareKakao())); }
+    catch { kakaoReady = null; return toast('카카오톡을 불러오지 못했어요'); }
+    const link = { mobileWebUrl: shareUrl, webUrl: shareUrl };
+    Kakao.Share.sendDefault({
+      objectType: 'feed',
+      content: { title: shareTitle(), description: SHARE_DESC, imageUrl, imageWidth: 800, imageHeight: 800, link },
+      buttons: [{ title: '꽃다발 열어보기', link }],
+    });
   });
 
   /* ================= 시작 ================= */

@@ -5,19 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>꽃다발 + 편지 · 아이디어 공작소</title>
   <meta name="description" content="꽃말로 꽃을 골라 꽃다발을 만들고 편지와 함께 보내요">
-  <meta property="og:title" content="꽃다발이 도착했어요">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="꽃다발이 도착했어요 💐">
   <meta property="og:description" content="리본을 풀어 꽃과 편지를 확인해 보세요">
   <meta property="og:image" content="https://ge323.github.io/gongjakso/bouquet/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <main>
     <section class="stage">
       <p class="to-line" id="to-line"></p>
-      <svg id="bq" viewBox="0 0 400 580" role="img" aria-label="꽃다발">
+      <svg id="bq" viewBox="0 50 400 450" role="img" aria-label="꽃다발">
         <g id="bq-body"></g>
         <g id="bq-guide"></g>
         <g id="bq-ribbon" filter="url(#wc)"></g>
@@ -61,8 +65,9 @@
         <p class="done">꽃다발이 준비됐어요</p>
         <input id="link" readonly>
         <div class="row center">
-          <button class="btn" id="copy">링크 복사</button>
+          <button class="btn kakao" id="kakao">카카오톡</button>
           <button class="btn" id="share">공유</button>
+          <button class="btn" id="copy">복사</button>
         </div>
         <div class="row center">
           <a class="ghost" id="preview" target="_blank" rel="noopener">받는 화면 보기</a>
@@ -92,8 +97,8 @@
 
   <div class="toast" id="toast" role="status"></div>
 
-  <script src="flowers.js?v=3"></script>
-  <script src="script.js?v=3"></script>
+  <script src="flowers.js?v=4"></script>
+  <script src="script.js?v=5"></script>
   <script src="../visit-counter.js" defer></script>
 </body>
 </html>

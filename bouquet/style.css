@@ -209,6 +209,7 @@ textarea {
 
 .done { margin: 8px 0 4px; text-align: center; }
 #link { font-size: 13px; text-align: center; }
+.btn.kakao { background: #fee500; color: #191919; }
 
 /* ---------- 받기 ---------- */
 .card {
