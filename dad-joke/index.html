@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🤣 아재개그 뽑기</title>
+  <meta name="description" content="버튼 한 번에 아재개그 하나. 피식? 썰렁? | 아이디어 공작소 #5">
+  <meta property="og:title" content="🤣 아재개그 뽑기">
+  <meta property="og:description" content="피식했는지 썰렁했는지 투표하고, 개그끼리 대결도 시켜 보세요!">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ge323.github.io/gongjakso/dad-joke/">
+  <meta property="og:image" content="https://ge323.github.io/gongjakso/dad-joke/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="style.css?v=3">
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <p class="badge">아이디어 공작소 #5</p>
+      <h1 class="title">🤣 아재개그 뽑기</h1>
+      <p class="subtitle">정답을 보고 <strong>피식</strong>했는지 투표해 주세요</p>
+      <p class="total" id="total"></p>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab on" data-tab="draw">🎲 뽑기</button>
+      <button class="tab" data-tab="vs">⚔️ 대결</button>
+      <button class="tab" data-tab="rank">🏆 순위</button>
+    </nav>
+
+    <!-- 🎲 뽑기 -->
+    <section class="panel on" id="tab-draw">
+      <div class="card" id="drawCard">
+        <p class="q" id="drawQ">불러오는 중…</p>
+        <p class="a" id="drawA"></p>
+        <button class="btn btn-main" id="revealBtn" hidden>정답 보기</button>
+        <div class="react" id="reactBox" hidden>
+          <button class="react-btn" data-k="lol">😏 피식</button>
+          <button class="react-btn" data-k="cold">🥶 썰렁</button>
+        </div>
+        <p class="stat" id="drawStat"></p>
+      </div>
+      <button class="btn next" id="nextJoke" hidden>다음 개그</button>
+    </section>
+
+    <!-- ⚔️ 대결 -->
+    <section class="panel" id="tab-vs">
+      <p class="hint" id="vsHint">정답을 보고 더 웃긴 쪽을 골라 주세요</p>
+      <button class="card vs-card" data-side="0">
+        <span class="q"></span><span class="a"></span><span class="stat"></span>
+      </button>
+      <p class="vs">VS</p>
+      <button class="card vs-card" data-side="1">
+        <span class="q"></span><span class="a"></span><span class="stat"></span>
+      </button>
+      <button class="btn btn-main" id="vsReveal">정답 보기</button>
+      <button class="btn next" id="nextVs" hidden>다음 대결</button>
+    </section>
+
+    <!-- 🏆 순위 -->
+    <section class="panel" id="tab-rank">
+      <div class="seg">
+        <button class="seg-btn on" data-r="today">오늘 피식</button>
+        <button class="seg-btn" data-r="lol">피식왕</button>
+        <button class="seg-btn" data-r="cold">썰렁왕</button>
+        <button class="seg-btn" data-r="vs">대결왕</button>
+      </div>
+      <ol class="rank" id="rankList"></ol>
+      <p class="note" id="rankNote"></p>
+    </section>
+
+    <footer class="footer">
+      <p>의뢰: 픞 · 🛠️ 아이디어 공작소</p>
+      <p id="visit-count" hidden style="font-size: 0.8rem; opacity: 0.6"></p>
+      <p><a class="home-link" href="https://ge323.github.io/gongjakso/">다른 공작품 보러가기 →</a></p>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="script.js?v=2"></script>
+  <script src="../visit-counter.js" defer></script>
+</body>
+</html>
