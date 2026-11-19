@@ -88,6 +88,8 @@ function showTab(name) {
   $$('.panel').forEach(p => p.classList.toggle('on', p.id === 'tab-' + name));
   if (name === 'vs' && !pair) nextPair();
   if (name === 'rank') renderRank();
+  if (name === 'duel') { if (window.duelTabOpened) window.duelTabOpened(); }
+  else if (window.duelTabClosed) window.duelTabClosed();
 }
 $$('.tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 

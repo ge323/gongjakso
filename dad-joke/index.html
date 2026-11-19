@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🤣 아재개그 뽑기</title>
-  <meta name="description" content="버튼 한 번에 아재개그 하나. 피식? 썰렁? | 아이디어 공작소 #5">
+  <meta name="description" content="버튼 한 번에 아재개그 하나. 피식? 썰렁? | 아이디어 공작소 #4">
   <meta property="og:title" content="🤣 아재개그 뽑기">
   <meta property="og:description" content="피식했는지 썰렁했는지 투표하고, 개그끼리 대결도 시켜 보세요!">
   <meta property="og:type" content="website">
@@ -13,12 +13,12 @@
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <main class="app">
     <header class="header">
-      <p class="badge">아이디어 공작소 #5</p>
+      <p class="badge">아이디어 공작소 #4</p>
       <h1 class="title">🤣 아재개그 뽑기</h1>
       <p class="subtitle">정답을 보고 <strong>피식</strong>했는지 투표해 주세요</p>
       <p class="total" id="total"></p>
@@ -26,7 +26,8 @@
 
     <nav class="tabs" role="tablist">
       <button class="tab on" data-tab="draw">🎲 뽑기</button>
-      <button class="tab" data-tab="vs">⚔️ 대결</button>
+      <button class="tab" data-tab="vs">🆚 비교</button>
+      <button class="tab" data-tab="duel">🥊 1:1</button>
       <button class="tab" data-tab="rank">🏆 순위</button>
     </nav>
 
@@ -59,6 +60,72 @@
       <button class="btn next" id="nextVs" hidden>다음 대결</button>
     </section>
 
+    <!-- 🥊 1:1 -->
+    <section class="panel" id="tab-duel">
+      <!-- 대기실 -->
+      <div class="duel-view" id="duelLobby">
+        <div class="card invite-card" id="inviteCard" hidden>
+          <p class="q">초대받은 방 <span id="inviteCode"></span></p>
+          <p class="stat">닉네임을 적고 참가하면 바로 시작해요</p>
+        </div>
+        <div class="card">
+          <p class="q">🥊 1:1 아재개그 퀴즈</p>
+          <p class="stat">먼저 맞히는 사람이 1점! 모두 7문제</p>
+          <input class="field" id="duelName" maxlength="10" placeholder="닉네임 (10자까지)" autocomplete="off">
+          <button class="btn btn-main" id="inviteJoin" hidden>참가하기</button>
+          <button class="btn btn-main" id="duelCreate">방 만들기</button>
+        </div>
+        <p class="list-title">기다리는 방 <b id="roomCount"></b></p>
+        <ul class="rooms" id="roomList"></ul>
+        <p class="note" id="roomEmpty">아직 열린 방이 없어요. 방을 만들고 친구를 불러 보세요!</p>
+      </div>
+
+      <!-- 내 방에서 기다리기 -->
+      <div class="duel-view" id="duelWait" hidden>
+        <div class="card">
+          <p class="q">상대를 기다리는 중…</p>
+          <p class="stat">방 번호 <b id="waitCode"></b> · 대기실 목록에 떠 있어요</p>
+          <div class="dots"><i></i><i></i><i></i></div>
+          <button class="btn btn-main" id="inviteBtn">친구 초대 링크 보내기</button>
+          <button class="btn next" id="cancelWait">방 닫기</button>
+          <p class="stat">이 화면을 켜 두세요. 누가 들어오면 소리로 알려 드려요</p>
+        </div>
+      </div>
+
+      <!-- 대결 -->
+      <div class="duel-view" id="duelGame" hidden>
+        <div class="scoreboard">
+          <div class="side me"><span id="meName"></span><b id="meScore">0</b></div>
+          <span class="colon">:</span>
+          <div class="side opp"><b id="oppScore">0</b><span id="oppName"></span></div>
+        </div>
+        <div class="card game-card" id="gameCard">
+          <p class="qno" id="gNo"></p>
+          <div class="timer"><i id="gTimer"></i></div>
+          <p class="count" id="gCount" hidden></p>
+          <p class="q" id="gQ"></p>
+          <p class="a" id="gA"></p>
+          <p class="msg" id="gMsg"></p>
+          <form class="answer-row" id="gForm" autocomplete="off">
+            <input class="field" id="gInput" maxlength="40" placeholder="정답 입력" enterkeyhint="send" autocomplete="off">
+            <button class="btn btn-main" type="submit">제출</button>
+          </form>
+          <button class="btn next" id="gPass">모르겠어요</button>
+        </div>
+        <button class="quit" id="quitGame">나가기</button>
+      </div>
+
+      <!-- 끝 -->
+      <div class="duel-view" id="duelDone" hidden>
+        <div class="card">
+          <p class="done-title" id="doneTitle"></p>
+          <p class="stat" id="doneScore"></p>
+          <button class="btn btn-main" id="againBtn">한 판 더</button>
+          <button class="btn next" id="toLobby">대기실로</button>
+        </div>
+      </div>
+    </section>
+
     <!-- 🏆 순위 -->
     <section class="panel" id="tab-rank">
       <div class="seg">
@@ -72,7 +139,7 @@
     </section>
 
     <footer class="footer">
-      <p>의뢰: 픞 · 🛠️ 아이디어 공작소</p>
+      <p>의뢰: 픞님 · 🛠️ 아이디어 공작소</p>
       <p id="visit-count" hidden style="font-size: 0.8rem; opacity: 0.6"></p>
       <p><a class="home-link" href="https://ge323.github.io/gongjakso/">다른 공작품 보러가기 →</a></p>
     </footer>
@@ -80,7 +147,17 @@
 
   <div class="toast" id="toast" role="status"></div>
 
-  <script src="script.js?v=2"></script>
+  <script>
+    // 파일을 못 불러오거나 오류가 나면 화면에 표시 (폰에서 원인 확인용)
+    window.addEventListener('error', function (e) {
+      var q = document.getElementById('drawQ');
+      if (!q || q.textContent.indexOf('불러오는 중') < 0) return;
+      if (e.target && e.target.src && e.target.src.indexOf('visit-counter') >= 0) return;
+      q.textContent = '오류: ' + (e.message || (e.target && e.target.src ? e.target.src + ' 못 불러옴' : '알 수 없음'));
+    }, true);
+  </script>
+  <script src="script.js?v=3"></script>
+  <script src="duel.js?v=1"></script>
   <script src="../visit-counter.js" defer></script>
 </body>
 </html>
