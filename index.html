@@ -182,6 +182,45 @@
 
       .item.is-locked .icon {
         filter: blur(3px);
+        animation: locked-blink 3.2s ease-in-out infinite;
+      }
+
+      .item.is-locked {
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .item.is-locked .no {
+        color: var(--muted);
+      }
+
+      .item.is-locked.shake {
+        animation: locked-shake 0.4s;
+      }
+
+      @keyframes locked-blink {
+        0%,
+        100% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 0.9;
+        }
+      }
+
+      @keyframes locked-shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        20%,
+        60% {
+          transform: translateX(-6px);
+        }
+        40%,
+        80% {
+          transform: translateX(6px);
+        }
       }
 
       /* 의뢰 안내 */
@@ -233,6 +272,22 @@
       <section>
         <h2 class="section-title">🧰 공작품</h2>
         <div class="list">
+          <!-- 공작 #5 공개 전 (공개 날: a로 바꾸고 href·이름·설명·NEW, #4 NEW 빼기) -->
+          <div class="item is-locked" id="locked-5" role="button" tabindex="0">
+            <div class="icon">🌙</div>
+            <div class="info">
+              <p class="no">공작 #5 · 공개 전</p>
+              <p class="name">??? ???</p>
+              <p class="desc" id="locked-5-desc">
+                불 꺼진 창문 하나가 당신을 기다리고 있어요
+              </p>
+              <div class="tags">
+                <span class="tag">🌙 밤에 공개</span>
+              </div>
+            </div>
+            <span class="go">🔒</span>
+          </div>
+
           <!-- 공작 #4 (최신이 위로) -->
           <a class="item" href="https://ge323.github.io/gongjakso/dad-joke/">
             <div class="icon">🤣</div>
@@ -330,5 +385,38 @@
         <p id="visit-count" hidden style="font-size: 0.8rem; opacity: 0.6"></p>
       </footer>
     </main>
+    <script>
+      // 공개 전 카드: 누르면 흔들림 + 힌트 잠깐 바뀜
+      (function () {
+        var card = document.getElementById("locked-5");
+        var desc = document.getElementById("locked-5-desc");
+        if (!card || !desc) return;
+        var base = desc.textContent.trim();
+        var hints = [
+          "아직 문이 잠겨 있어요 🔑",
+          "늦은 밤, 다시 와 보세요",
+          "누군가 이미 깨어 있을지도…",
+        ];
+        var i = 0;
+        var timer;
+        function poke() {
+          card.classList.remove("shake");
+          void card.offsetWidth;
+          card.classList.add("shake");
+          desc.textContent = hints[i++ % hints.length];
+          clearTimeout(timer);
+          timer = setTimeout(function () {
+            desc.textContent = base;
+          }, 1800);
+        }
+        card.addEventListener("click", poke);
+        card.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            poke();
+          }
+        });
+      })();
+    </script>
   </body>
 </html>
