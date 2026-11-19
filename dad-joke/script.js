@@ -345,3 +345,42 @@ load().then(ok => {
   nextJoke();
   setInterval(() => { if (!document.hidden) refresh(); }, 60000);
 });
+
+// ---------- 💡 익명 건의함 (보내기만, 읽기는 공작소장만) ----------
+(() => {
+  let kind = 'idea';
+  const box = $('#fbText');
+  $('#fbOpen').addEventListener('click', () => {
+    const card = $('#fbCard');
+    card.hidden = !card.hidden;
+    if (!card.hidden) box.focus({ preventScroll: true });
+  });
+  $$('.fb-kind').forEach(b => b.addEventListener('click', () => {
+    kind = b.dataset.k;
+    $$('.fb-kind').forEach(x => x.classList.toggle('on', x === b));
+    box.placeholder = {
+      idea: '이런 기능이나 공작이 있으면 좋겠어요',
+      joke: '문제와 정답을 적어 주세요 (예: 왕이 넘어지면? 킹콩)',
+      bug: '어디서 어떻게 이상했는지 적어 주세요',
+      etc: '하고 싶은 말을 편하게 적어 주세요',
+    }[kind];
+  }));
+  box.addEventListener('input', () => { $('#fbCount').textContent = `${box.value.length} / 300`; });
+  let sending = false;
+  $('#fbSend').addEventListener('click', async () => {
+    const text = box.value.trim();
+    if (text.length < 2) { toast('두 글자 이상 적어 주세요'); return; }
+    if (sending) return;
+    sending = true;
+    const { error } = await db.rpc('dj_feedback_send', { p_player: PLAYER, p_kind: kind, p_body: text });
+    sending = false;
+    if (error) {
+      toast((error.message || '').includes('limit') ? '오늘은 더 보낼 수 없어요. 내일 또 들려 주세요!' : '전송이 안 됐어요. 잠시 후 다시 해 주세요');
+      return;
+    }
+    box.value = '';
+    $('#fbCount').textContent = '0 / 300';
+    $('#fbCard').hidden = true;
+    toast('전달했어요! 고마워요 🙏');
+  });
+})();
