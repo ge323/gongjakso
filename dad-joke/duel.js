@@ -30,6 +30,7 @@
   let pollT = null, listT = null, drawT = null;
   let busy = false;
   let lastCount = '';
+  let kicked = 0;           // 카운트다운 0초에 한 번만 바로 확인
   let pendingCode = (new URLSearchParams(location.search).get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
 
   const views = ['duelLobby', 'duelWait', 'duelGame', 'duelDone'];
@@ -242,6 +243,8 @@
 
     const cnt = $('#gCount'), form = $('#gForm'), skip = $('#gSkip');
     if (s.phase === 'countdown') {
+      // 0초가 되면 다음 확인을 기다리지 않고 바로 상태를 받아 시작
+      if (s.start - now() <= 0 && kicked !== s.start) { kicked = s.start; poll(); }
       const left = Math.max(1, Math.ceil((s.start - now()) / 1000));
       cnt.hidden = false;
       if (lastCount !== String(left)) {
