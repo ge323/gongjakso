@@ -13,7 +13,7 @@
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <main class="app">
@@ -27,7 +27,7 @@
     <nav class="tabs" role="tablist">
       <button class="tab on" data-tab="draw">🎲 뽑기</button>
       <button class="tab" data-tab="vs">🆚 비교</button>
-      <button class="tab" data-tab="duel">🥊 1:1</button>
+      <button class="tab" data-tab="duel">⏱️ 퀴즈</button>
       <button class="tab" data-tab="rank">🏆 순위</button>
     </nav>
 
@@ -60,7 +60,7 @@
       <button class="btn next" id="nextVs" hidden>다음 대결</button>
     </section>
 
-    <!-- 🥊 1:1 -->
+    <!-- ⏱️ 퀴즈 (혼자 도전 / 1:1) -->
     <section class="panel" id="tab-duel">
       <!-- 대기실 -->
       <div class="duel-view" id="duelLobby">
@@ -69,8 +69,14 @@
           <p class="stat">닉네임을 적고 참가하면 바로 시작해요</p>
         </div>
         <div class="card">
-          <p class="q">🥊 1:1 아재개그 퀴즈</p>
-          <p class="stat">먼저 맞히는 사람이 1점! 모두 7문제</p>
+          <p class="q">⏱️ 60초 혼자 도전</p>
+          <p class="stat">60초 동안 몇 개나 맞힐 수 있을까?</p>
+          <button class="btn btn-main" id="soloBtn">혼자 도전</button>
+          <p class="best" id="myBest"></p>
+        </div>
+        <div class="card">
+          <p class="q">🥊 1:1 대결</p>
+          <p class="stat">같은 문제를 60초 동안, 더 많이 맞히면 승리!</p>
           <input class="field" id="duelName" maxlength="10" placeholder="닉네임 (10자까지)" autocomplete="off">
           <button class="btn btn-main" id="inviteJoin" hidden>참가하기</button>
           <button class="btn btn-main" id="duelCreate">방 만들기</button>
@@ -94,23 +100,21 @@
 
       <!-- 대결 -->
       <div class="duel-view" id="duelGame" hidden>
-        <div class="scoreboard">
+        <div class="scoreboard" id="gameBoard">
           <div class="side me"><span id="meName"></span><b id="meScore">0</b></div>
           <span class="colon">:</span>
           <div class="side opp"><b id="oppScore">0</b><span id="oppName"></span></div>
         </div>
         <div class="card game-card" id="gameCard">
-          <p class="qno" id="gNo"></p>
-          <div class="timer"><i id="gTimer"></i></div>
+          <div class="timer-row"><div class="timer"><i id="gTimer"></i></div><span id="gTime">60초</span></div>
           <p class="count" id="gCount" hidden></p>
           <p class="q" id="gQ"></p>
-          <p class="a" id="gA"></p>
           <p class="msg" id="gMsg"></p>
           <form class="answer-row" id="gForm" autocomplete="off">
             <input class="field" id="gInput" maxlength="40" placeholder="정답 입력" enterkeyhint="send" autocomplete="off">
             <button class="btn btn-main" type="submit">제출</button>
           </form>
-          <button class="btn next" id="gPass">모르겠어요</button>
+          <button class="btn next" id="gSkip">넘기기</button>
         </div>
         <button class="quit" id="quitGame">나가기</button>
       </div>
@@ -120,6 +124,7 @@
         <div class="card">
           <p class="done-title" id="doneTitle"></p>
           <p class="stat" id="doneScore"></p>
+          <p class="stat" id="doneSub"></p>
           <button class="btn btn-main" id="againBtn">한 판 더</button>
           <button class="btn next" id="toLobby">대기실로</button>
         </div>
@@ -157,7 +162,7 @@
     }, true);
   </script>
   <script src="script.js?v=3"></script>
-  <script src="duel.js?v=1"></script>
+  <script src="duel.js?v=2"></script>
   <script src="../visit-counter.js" defer></script>
 </body>
 </html>

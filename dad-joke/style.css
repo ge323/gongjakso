@@ -265,11 +265,20 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 .scoreboard b { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .scoreboard .colon { color: var(--muted); font-size: 20px; }
 
-.game-card { gap: 14px; min-height: 300px; justify-content: center; }
-.qno { font-size: 13px; color: var(--muted); font-weight: 700; }
-.qno:empty { display: none; }
-.timer { width: 100%; height: 6px; border-radius: 3px; background: var(--card2); overflow: hidden; }
+.best { font-size: 14px; font-weight: 700; color: var(--accent); }
+.best:empty { display: none; }
+.scoreboard.solo { grid-template-columns: 1fr; }
+.scoreboard.solo .colon, .scoreboard.solo .opp { display: none; }
+.scoreboard.solo .me { justify-content: center; }
+.scoreboard.solo .me span { color: var(--muted); }
+.bump { display: inline-block; animation: pop .35s ease-out; }
+
+.game-card { gap: 14px; min-height: 280px; justify-content: center; }
+.timer-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+.timer-row span { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+.timer { flex: 1; height: 6px; border-radius: 3px; background: var(--card2); overflow: hidden; }
 .timer i { display: block; height: 100%; width: 100%; background: var(--accent); transition: width .1s linear; }
+.timer i.hurry { background: #f87171; }
 .count { font-size: 88px; font-weight: 800; color: var(--accent); line-height: 1; }
 .count.tick { animation: pop .5s ease-out; }
 .msg { font-size: 15px; font-weight: 700; color: var(--muted); min-height: 1.4em; }
