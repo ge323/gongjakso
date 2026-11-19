@@ -207,6 +207,24 @@ const Sound = (() => {
     src.stop(t + 3.8);
   }
 
+  // 🎆 불꽃 터지는 소리: 멀리서 들리는 '퐁' (소리를 켰을 때만)
+  function pop() {
+    if (!on || !ctx) return;
+    const t = ctx.currentTime + 0.25 + Math.random() * 0.35;   // 빛보다 소리가 살짝 늦게
+    const src = ctx.createBufferSource();
+    src.buffer = makeNoise(1.2);
+    const f = ctx.createBiquadFilter();
+    f.type = "lowpass";
+    f.frequency.value = 380 + Math.random() * 200;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.16, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
+    src.connect(f).connect(g).connect(master);
+    src.start(t);
+    src.stop(t + 1.2);
+  }
+
   // ---------- 켜기 / 끄기 ----------
   async function start() {
     if (on) return;
@@ -253,7 +271,7 @@ const Sound = (() => {
     return dest.stream;
   }
 
-  return { start, stop, thunder, wanted, tap, isOn: () => on };
+  return { start, stop, thunder, pop, wanted, tap, isOn: () => on };
 })();
 
 // script.js에서 window.Sound로 찾을 수 있게

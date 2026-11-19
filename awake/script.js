@@ -1,4 +1,4 @@
-// 🌙 지금 깨어 있는 사람 | 아이디어 공작소 #3
+// 🌙 지금 깨어 있는 사람 | 아이디어 공작소 #4
 
 // ---------- 🔑 Supabase 설정 (딱 10초·픽셀 어항과 같은 프로젝트) ----------
 // 공개용(Publishable) 키라 코드에 넣어도 됩니다. Secret 키는 절대 넣지 마세요!
@@ -1041,6 +1041,7 @@ function checkGoals() {
     const g = TOWN_GOALS.find((t) => t.name === n);
     showToast(`다 같이 켠 불로 ${g.icon} ${g.name}${/[가-힣]$/.test(g.name) && (g.name.charCodeAt(g.name.length - 1) - 0xac00) % 28 ? "이" : "가"} 생겼어요!`);
     sparkleAt(n);
+    celebrate(40);   // 🎆 다 같이 만든 순간 축하 불꽃
     if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
     saveGoalsSeen(done);
   }
@@ -1434,6 +1435,213 @@ function roundRect(x, y, w, h, r) {
   tx.closePath();
 }
 
+
+// ---------- 🎆✈️🛸🐦 가끔 일어나는 일 (모두 같은 시각에 봄) ----------
+// 시각으로 정해서, 그 순간 켜 둔 사람은 모두 같은 장면을 봐요
+// 촬영·확인용: ?event=fireworks / plane / ufo / birds (계속 반복)
+const EVENT_PARAM = new URLSearchParams(location.search).get("event");
+const EV_T0 = performance.now();
+
+// 기준 위치 시각으로 '1970년부터 몇 분째' (?sky=HH:MM이면 그 시각부터 실제로 흘러감)
+function evNow() {
+  const real = Date.now() / 60000 + tzOffset();
+  if (SKY_PARAM && /^\d{1,2}:\d{2}$/.test(SKY_PARAM)) {
+    const [hh, mm] = SKY_PARAM.split(":").map(Number);
+    return Math.floor(real / 1440) * 1440 + hh * 60 + mm + (performance.now() - EV_T0) / 60000;
+  }
+  return real;
+}
+const dayMin = (t) => ((t % 1440) + 1440) % 1440;
+// a분부터 len분 동안이면 0~1 진행도, 아니면 -1 (자정 넘어가는 것도 계산)
+function phaseIn(min, a, len) {
+  const d = dayMin(min - a);
+  return d < len ? d / len : -1;
+}
+function strSeed(str) {
+  let h = 7;
+  for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) % 100003;
+  return h;
+}
+// 강제 보기(?event=)일 때 반복 진행도
+const loopPhase = (sec) => ((performance.now() - EV_T0) / 1000 % sec) / sec;
+
+// 🎆 불꽃놀이: 매일 밤 9시·자정 정각에 1분 + 단지 목표가 새로 생기는 순간
+const FIREWORK_TIMES = [21 * 60, 0];
+let fwUntil = 0;                 // 목표 달성 축하 불꽃이 끝나는 시각 (performance.now)
+const rockets = [], fwParts = [];
+let fwGlow = 0, fwGlowC = "#ffffff", fwNext = 0;
+
+function fireworksOn() {
+  if (EVENT_PARAM === "fireworks") return true;
+  if (performance.now() < fwUntil) return true;
+  const m = dayMin(evNow());
+  return FIREWORK_TIMES.some((a) => phaseIn(m, a, 1) >= 0);
+}
+function celebrate(sec) {
+  fwUntil = Math.max(fwUntil, performance.now() + sec * 1000);
+}
+
+function drawFireworks(W) {
+  const FW = ["#ff8fb1", "#fcd34d", "#8ec5ff", "#9be38a", "#ffffff", "#ff8c42", "#c4a5ff"];
+  if (fireworksOn() && frame >= fwNext) {
+    fwNext = frame + 10 + Math.floor(Math.random() * 22);
+    rockets.push({
+      x: 30 + Math.random() * (W - 60), y: GROUND - 20,
+      vy: -(3.6 + Math.random() * 1.0), top: 55 + Math.random() * 75,
+      c: FW[Math.floor(Math.random() * FW.length)], c2: FW[Math.floor(Math.random() * FW.length)],
+    });
+  }
+  // 하늘이 살짝 물드는 빛
+  if (fwGlow > 0.01) {
+    tx.fillStyle = rgba(fwGlowC, 0.07 * fwGlow);
+    tx.fillRect(0, 0, W, GROUND);
+    fwGlow *= 0.93;
+  }
+  for (let i = rockets.length - 1; i >= 0; i--) {
+    const r = rockets[i];
+    r.y += r.vy;
+    r.vy += 0.03;
+    tx.fillStyle = rgba("#fff3c4", 0.9);
+    tx.fillRect(Math.round(r.x), Math.round(r.y), 1, 3);
+    tx.fillStyle = rgba(r.c, 0.35);
+    tx.fillRect(Math.round(r.x), Math.round(r.y) + 3, 1, 5);
+    if (r.y <= r.top || r.vy >= -0.5) {
+      rockets.splice(i, 1);
+      const n = 44 + Math.floor(Math.random() * 26);
+      const sp = 1.7 + Math.random() * 1.1;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + Math.random() * 0.2;
+        const v = sp * (0.75 + Math.random() * 0.35);
+        fwParts.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0,
+          life: 60 + Math.random() * 40, c: k % 3 === 0 ? r.c2 : r.c });
+      }
+      fwGlow = 1;
+      fwGlowC = r.c;
+      if (window.Sound && Sound.pop) Sound.pop();
+    }
+  }
+  for (let i = fwParts.length - 1; i >= 0; i--) {
+    const p = fwParts[i];
+    p.age++;
+    if (p.age > p.life) { fwParts.splice(i, 1); continue; }
+    p.vx *= 0.975; p.vy = p.vy * 0.975 + 0.018;
+    p.x += p.vx; p.y += p.vy;
+    const t = p.age / p.life;
+    const tw = t > 0.6 ? (Math.floor(p.age / 3 + p.x) % 2) : 1;   // 끝무렵 반짝반짝
+    tx.fillStyle = rgba(p.c, (1 - t) * tw);
+    tx.fillRect(Math.round(p.x), Math.round(p.y), t < 0.5 ? 2 : 1, t < 0.5 ? 2 : 1);
+  }
+}
+
+// ✈️ 비행기: 30분마다 한 번, 그 30분 안 정해진 시각에 1분 30초 동안 하늘을 가로지름
+function planeNow() {
+  if (EVENT_PARAM === "plane") return { p: loopPhase(20), seed: 3 };
+  const t = evNow();
+  const slot = Math.floor(t / 30);
+  const start = slot * 30 + 3 + rand(slot * 13 + 7) * 22;
+  return t >= start && t < start + 1.5 ? { p: (t - start) / 1.5, seed: slot } : null;
+}
+function drawPlane(W, sky) {
+  const pl = planeNow();
+  if (!pl) return;
+  const ltr = pl.seed % 2 === 0;
+  const x = ltr ? -20 + pl.p * (W + 40) : W + 20 - pl.p * (W + 40);
+  const y = Math.round(100 + rand(pl.seed * 3 + 1) * 30 + pl.p * 6);   // 정보판에 안 가리게
+  const d = ltr ? 1 : -1;
+  const night = sky.stars > 0.3;
+  tx.fillStyle = night ? "rgba(70,80,105,0.9)" : "rgba(80,92,118,0.75)";
+  tx.fillRect(Math.round(x - 7), y, 15, 2);                 // 몸통
+  tx.fillRect(Math.round(x - d * 6), y - 3, 2, 3);          // 꼬리 날개
+  tx.fillRect(Math.round(x - 2), y + 2, 5, 1);              // 날개
+  tx.fillRect(Math.round(x - 1), y - 1, 3, 1);
+  if (night) {
+    const blink = Math.floor(frame / 30) % 2 === 0;
+    tx.fillStyle = blink ? "#ff5a5a" : "rgba(255,90,90,0.25)";
+    tx.fillRect(Math.round(x), y + 3, 2, 1);
+    if (frame % 60 < 4) { tx.fillStyle = "#ffffff"; tx.fillRect(Math.round(x + d * 7), y, 2, 1); }
+  }
+}
+
+// 🛸 UFO: 하룻밤에 한 번, 밤 11시~새벽 4시 사이 날짜로 정해진 시각에 1분 30초
+function ufoNow() {
+  if (EVENT_PARAM === "ufo") return { p: loopPhase(30), seed: 5 };
+  const seed = strSeed(nightKey());
+  const at = 23 * 60 + rand(seed) * 300;
+  const p = phaseIn(dayMin(evNow()), at, 1.5);
+  return p >= 0 ? { p, seed } : null;
+}
+function drawUfo(W, sky) {
+  const u = ufoNow();
+  if (!u || sky.stars < 0.3) return;
+  const b = Math.floor(rand(u.seed + 3) * 3);
+  const hx = Math.min(W - 40, BX[b] + BW / 2), hy = ROOF_Y - 42;      // 첫 구역의 한 동 위에서 머무름
+  let x, y, beam = 0;
+  const p = u.p;
+  if (p < 0.2) {            // 오른쪽 위에서 날아옴
+    const e = 1 - Math.pow(1 - p / 0.2, 3);
+    x = W + 30 + (hx - W - 30) * e; y = -20 + (hy + 20) * e;
+  } else if (p < 0.78) {    // 지붕 위에서 둥둥 + 빛
+    x = hx + Math.sin(frame / 25) * 3; y = hy + Math.sin(frame / 17) * 2;
+    beam = Math.min(1, (p - 0.2) / 0.06, (0.78 - p) / 0.06);
+  } else {                  // 순식간에 왼쪽 위로 사라짐
+    const e = Math.pow((p - 0.78) / 0.22, 2);
+    x = hx + (-60 - hx) * e; y = hy + (-50 - hy) * e;
+  }
+  x = Math.round(x); y = Math.round(y);
+  if (beam > 0) {
+    tx.fillStyle = `rgba(160,255,210,${0.16 * beam})`;
+    tx.beginPath();
+    tx.moveTo(x - 5, y + 4);
+    tx.lineTo(x + 5, y + 4);
+    tx.lineTo(x + 22, ROOF_Y);
+    tx.lineTo(x - 22, ROOF_Y);
+    tx.closePath();
+    tx.fill();
+  }
+  tx.fillStyle = "#9fe9ff";
+  tx.fillRect(x - 4, y - 5, 8, 4);          // 유리 덮개
+  tx.fillRect(x - 3, y - 6, 6, 1);
+  tx.fillStyle = "#8a93a8";
+  tx.fillRect(x - 12, y - 1, 24, 3);        // 몸체
+  tx.fillStyle = "#5c647a";
+  tx.fillRect(x - 9, y + 2, 18, 2);
+  const L = ["#ff8fb1", "#fcd34d", "#9be38a", "#8ec5ff"];
+  for (let k = 0; k < 5; k++) {
+    tx.fillStyle = L[(k + Math.floor(frame / 8)) % 4];
+    tx.fillRect(x - 10 + k * 5, y, 1, 1);
+  }
+}
+
+// 🐦 새 떼: 해 뜨기 전 두 번 · 해 지고 한 번, V자로 1분 동안 지나감
+function birdsNow(sky) {
+  if (EVENT_PARAM === "birds") return { p: loopPhase(15), seed: 2 };
+  const m = dayMin(evNow());
+  for (const [a, seed] of [[sky.rise - 24, 1], [sky.rise - 13, 2], [sky.set + 6, 3]]) {
+    const p = phaseIn(m, a, 1);
+    if (p >= 0) return { p, seed };
+  }
+  return null;
+}
+function drawBirds(W, sky) {
+  const bd = birdsNow(sky);
+  if (!bd) return;
+  const ltr = bd.seed !== 2;
+  const lead = ltr ? -40 + bd.p * (W + 120) : W + 40 - bd.p * (W + 120);
+  const baseY = 100 + rand(bd.seed + 40) * 30;   // 정보판에 안 가리게
+  const d = ltr ? -1 : 1;                              // 뒤따르는 새는 뒤쪽으로
+  tx.fillStyle = sky.amb > 0.5 ? "rgba(40,45,60,0.8)" : "rgba(20,22,34,0.85)";
+  for (let k = 0; k < 9; k++) {
+    const row = Math.ceil(k / 2), side = k % 2 ? -1 : 1;
+    const bx = Math.round(lead + d * row * 9);
+    const by = Math.round(baseY + side * row * 5 + Math.sin(frame / 20 + k) * 1.5);
+    const up = (Math.floor(frame / 9) + k) % 2 === 0;
+    // 날갯짓: ˅ 모양 / ‾ 모양
+    tx.fillRect(bx, by, 1, 1);
+    tx.fillRect(bx - 2, by + (up ? -1 : 0), 2, 1);
+    tx.fillRect(bx + 1, by + (up ? -1 : 0), 2, 1);
+  }
+}
+
 // ---------- 그리기 ----------
 function sizeCanvas() {
   const total = Math.max(dbTotal, myNo || 0, ...online.keys(), 1);
@@ -1457,6 +1665,9 @@ function draw() {
   sky.stars *= Math.pow(1 - oc, 2);
   amb = sky.amb * (1 - oc * 0.25);
   drawSky(W, sky);
+  drawBirds(W, sky);
+  drawPlane(W, sky);
+  drawFireworks(W);
   drawFarCity(W, sky);
   drawGround(W);
   drawTownExtras(sky);
@@ -1464,6 +1675,7 @@ function draw() {
     for (let b = 0; b < 3; b++) drawBuilding(k * 3 + b, k * BLOCK_W + BX[b]);
   }
   for (let n = 1; n <= blocks * PER_BLOCK; n++) drawWindow(n);
+  drawUfo(W, sky);
   drawWalkers();
   drawSparkles();
   drawReacts();
@@ -1694,7 +1906,8 @@ function openPeek(n) {
     waveBtn.hidden = false;
     waveBtn.disabled = false;
   } else if (st.kind === "ember") {
-    peekState.textContent = `${ago(st.t)}에 불을 껐어요`;
+    const when = ago(st.t);
+    peekState.textContent = when === "방금" ? "방금 불을 껐어요" : `${when}에 불을 껐어요`;
   } else if (!isEmptyHouse(n)) {
     peekState.textContent = "오늘은 불이 꺼져 있어요";
   } else {
@@ -2485,6 +2698,11 @@ function checkMoments() {
     showToast(text);
   };
   if (isMeteorTime()) once("meteor", "새벽 3시, 별똥별이 쏟아지고 있어요");
+  const em = dayMin(evNow());
+  if (phaseIn(em, 21 * 60, 1) >= 0) once("fw21", "밤 9시 · 단지에 불꽃놀이가 시작됐어요 🎆");
+  if (phaseIn(em, 0, 1) >= 0) once("fw0", "자정 · 오늘도 수고했어요 🎆");
+  const u = ufoNow();
+  if (u && u.p > 0.25 && u.p < 0.7 && !EVENT_PARAM && skyNow().stars > 0.3) once("ufo", "🛸 방금… 지붕 위에 뭔가 있었어요?");
   const { rise } = sunTimes(doy);
   if (Math.abs(min - rise) < 5) once("sunrise", "해가 떠요. 밤새 불 켜 둔 사람들, 수고했어요");
 }
