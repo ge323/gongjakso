@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
   <main>
@@ -103,6 +103,7 @@
         <p class="c-from" id="c-from"></p>
         <ul class="c-flowers" id="c-flowers"></ul>
       </article>
+      <button class="ghost save-btn" id="save-img" hidden>📷 사진으로 저장</button>
       <a class="btn wide" id="again" href="./" hidden>나도 꽃다발 보내기</a>
       <a class="ghost shop-link center" href="./?shop=1">🌷 모두의 꽃집 구경하기</a>
     </section>
@@ -125,6 +126,14 @@
   </main>
 
   <div class="toast" id="toast" role="status"></div>
+  <div class="photo" id="photo" hidden>
+    <img id="photo-img" alt="꽃다발과 편지 사진">
+    <p>저장이 안 되면 사진을 길게 눌러 저장해 주세요</p>
+    <div class="photo-btns">
+      <button class="ghost" id="photo-close">닫기</button>
+      <button class="btn" id="photo-save">저장</button>
+    </div>
+  </div>
 
   <script>
     // 파일을 못 불러오거나 오류가 나면 화면에 표시 (폰에서 원인 확인용)
@@ -133,7 +142,7 @@
       if (h) h.textContent = '오류: ' + (e.message || (e.target && (e.target.src || e.target.href)) || '알 수 없음');
     }, true);
   </script>
-  <script src="bouquet.js?v=9"></script>
+  <script src="bouquet.js?v=10"></script>
   <script src="../visit-counter.js" defer></script>
 </body>
 </html>

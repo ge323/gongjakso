@@ -902,10 +902,189 @@ window.Flowers = (() => {
       const card = $('#card');
       card.hidden = false;
       $('#again').hidden = false;
+      $('#save-img').hidden = false;
       requestAnimationFrame(() => card.classList.add('show'));
       card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 1100);
   }
+
+  /* ----- 사진으로 저장: 꽃다발 + 편지 + 꽃말을 한 장으로 ----- */
+  // 편지 줄바꿈: 띄어쓰기 단위로 넘기고, 너무 긴 낱말만 글자 단위로 자름
+  function wrapText(ctx, text, maxW) {
+    const out = [];
+    for (const para of String(text).split('\n')) {
+      let line = '';
+      for (const word of para.split(' ')) {
+        const t = line ? line + ' ' + word : word;
+        if (ctx.measureText(t).width <= maxW) { line = t; continue; }
+        if (line) out.push(line);
+        line = '';
+        for (const ch of word) {
+          if (ctx.measureText(line + ch).width > maxW && line) { out.push(line); line = ''; }
+          line += ch;
+        }
+      }
+      out.push(line);
+    }
+    return out;
+  }
+
+  async function bouquetImage(size) {
+    const c = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="-25 50 450 450">` +
+      $('svg.defs defs').outerHTML + F.compose(st) + F.ribbon(st.ribbon, 2) + '</svg>';
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(c);
+    await img.decode();
+    return img;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  async function photoBlob() {
+    const HAND = "'Gaegu', 'Gowun Batang', cursive", SANS = "'Gowun Batang', serif";
+    try { await Promise.all(['400 40px Gaegu', '700 40px Gaegu', '400 30px "Gowun Batang"'].map(f => document.fonts.load(f))); } catch { }
+
+    const W = 1080, PAD = 70, IN = 60, TW = W - PAD * 2 - IN * 2;
+    const ctx0 = document.createElement('canvas').getContext('2d');
+
+    // 편지가 길면 글씨를 조금씩 줄임 (너무 길면 사진이 세로로 길어짐)
+    let fs = 46, lines;
+    for (; ; fs -= 2) {
+      ctx0.font = `400 ${fs}px ${HAND}`;
+      lines = wrapText(ctx0, st.letter, TW);
+      if (lines.length * fs * 1.7 <= 1100 || fs <= 34) break;
+    }
+    const LH = Math.round(fs * 1.7);
+    const meanings = [...new Set(st.flowers)].map(id => F.byId[id]).filter(fl => fl && fl.meaning);
+    const mRows = Math.ceil(meanings.length / 2);
+
+    const BQ = 860;                                   // 꽃다발 그림 크기
+    const cardH = IN + 64 + 20 + lines.length * LH + 30 + 64 + (mRows ? 40 + mRows * 84 : 0) + IN;
+    const contentH = 40 + BQ - 60 + cardH + 110;
+    const H = Math.max(1920, contentH);
+    const top = Math.round((H - contentH) / 2);
+
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#f7f1e8';
+    ctx.fillRect(0, 0, W, H);
+
+    // 꽃다발
+    const img = await bouquetImage(BQ);
+    const bqY = top + 40;
+    ctx.drawImage(img, (W - BQ) / 2, bqY, BQ, BQ);
+
+    // 편지 종이 (꽃다발 아래쪽과 살짝 겹치게)
+    const cx = PAD, cy = bqY + BQ - 60, cw = W - PAD * 2;
+    ctx.save();
+    ctx.shadowColor = 'rgba(60, 40, 20, .18)';
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 14;
+    roundRect(ctx, cx, cy, cw, cardH, 14);
+    ctx.fillStyle = '#fffdf8';
+    ctx.fill();
+    ctx.restore();
+    roundRect(ctx, cx, cy, cw, cardH, 14);
+    ctx.strokeStyle = '#e4d9ca';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const x0 = cx + IN, x1 = cx + cw - IN;
+    let y = cy + IN;
+    ctx.fillStyle = '#3a332d';
+    ctx.textBaseline = 'top';
+    ctx.font = `700 52px ${HAND}`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`To. ${st.to}`, x0, y);
+    y += 64 + 20;
+
+    ctx.font = `400 ${fs}px ${HAND}`;
+    for (const ln of lines) { ctx.fillText(ln, x0, y + (LH - fs) / 2); y += LH; }
+    y += 30;
+
+    ctx.font = `700 52px ${HAND}`;
+    ctx.textAlign = 'right';
+    ctx.fillText(`From. ${st.from}`, x1, y);
+    y += 64;
+
+    // 꽃말 (2칸)
+    if (mRows) {
+      y += 20;
+      ctx.save();
+      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = '#e4d9ca';
+      ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+      ctx.restore();
+      y += 20;
+      ctx.textAlign = 'left';
+      const colW = (x1 - x0) / 2;
+      meanings.forEach((fl, i) => {
+        const mx = x0 + (i % 2) * colW, my = y + Math.floor(i / 2) * 84 + 8;
+        ctx.fillStyle = '#3a332d';
+        ctx.font = `400 28px ${SANS}`;
+        ctx.fillText(fl.name, mx, my);
+        ctx.fillStyle = '#8a7f74';
+        ctx.font = `400 25px ${SANS}`;
+        ctx.fillText(fl.meaning, mx, my + 38);
+      });
+    }
+
+    // 아래 작은 글씨
+    ctx.fillStyle = '#a99d90';
+    ctx.font = `400 26px ${SANS}`;
+    ctx.textAlign = 'center';
+    ctx.fillText('💐 꽃다발 보내기 · 아이디어 공작소', W / 2, cy + cardH + 50);
+
+    return new Promise(r => cv.toBlob(r, 'image/png'));
+  }
+
+  let photoUrl = '', photoFile = null;
+  $('#save-img').addEventListener('click', async () => {
+    const btn = $('#save-img');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = '사진 만드는 중…';
+    try {
+      const blob = await photoBlob();
+      const name = `꽃다발_${(st.to || '').replace(/[\\/:*?"<>|\s]+/g, '') || 'to'}.png`;
+      photoFile = new File([blob], name, { type: 'image/png' });
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
+      photoUrl = URL.createObjectURL(blob);
+      $('#photo-img').src = photoUrl;
+      $('#photo').hidden = false;
+    } catch {
+      toast('사진을 만들지 못했어요. 다시 눌러 주세요');
+    }
+    btn.textContent = label;
+    btn.disabled = false;
+  });
+
+  $('#photo-close').addEventListener('click', () => { $('#photo').hidden = true; });
+  $('#photo').addEventListener('click', e => { if (e.target.id === 'photo') $('#photo').hidden = true; });
+  $('#photo-save').addEventListener('click', async () => {
+    if (!photoFile) return;
+    // 폰: 공유 창 → "이미지 저장" / PC: 바로 내려받기
+    if (navigator.canShare && navigator.canShare({ files: [photoFile] }) && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      try { await navigator.share({ files: [photoFile] }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    const a = document.createElement('a');
+    a.href = photoUrl;
+    a.download = photoFile.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast('사진을 저장했어요');
+  });
 
   /* ----- 종이폭죽 ----- */
   const B_X = 200, B_Y = 368; // 리본 매듭 자리 (그림 좌표)
